@@ -5,12 +5,16 @@ namespace Tickify.Services
 {
     public interface ITicketService
     {
-        Task<IEnumerable<TicketDto>> GetAllTicketsDtoAsync();
-        Task<TicketDto> GetTicketDtoByIdAsync(int id);
-        Task<TicketDto> CreateTicketAsync(CreateTicketDto createDto, string userId);
-        Task UpdateTicketAsync(int id, UpdateTicketDto updateDto);
-        Task DeleteTicketAsync(int id);
+        Task<IEnumerable<TicketDto>> GetTicketsForUserAsync(string userId, bool isAdmin);
+
+        Task<TicketDto> GetTicketDtoByIdAsync(int id, string userId, bool isAdmin);
+
+        Task<TicketDto> CreateTicketAsync(string title, string description, string priority, string userId, bool isAdmin, IFormFile? image);
+
+        Task UpdateTicketAsync(int id, UpdateTicketDto updateDto, string userId, bool isAdmin);
+
+        Task DeleteTicketAsync(int id, string userId, bool isAdmin);
+
+        Task<bool> DeleteTicketImageAsync(int ticketId, string userId, bool isAdmin);
     }
-
-
 }

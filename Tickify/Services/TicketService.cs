@@ -1,4 +1,8 @@
-﻿using Tickify.DTOs;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Tickify.DTOs;
 using Tickify.Models;
 using Tickify.Repositories;
 
@@ -12,10 +16,10 @@ namespace Tickify.Services
         {
             _ticketRepository = ticketRepository;
         }
-
-        public async Task<IEnumerable<TicketDto>> GetAllTicketsDtoAsync()
+        public async Task<IEnumerable<TicketDto>> GetTicketsForUserAsync(string userId, bool isAdmin)
         {
             var tickets = await _ticketRepository.GetAllTicketsAsync();
+
             var ticketDtos = tickets.Select(t => new TicketDto
             {
                 Id = t.Id,
@@ -28,13 +32,28 @@ namespace Tickify.Services
                 CreatedBy = t.CreatedBy,
                 AssignedTo = t.AssignedTo
             });
+
+            if (!isAdmin && !string.IsNullOrEmpty(userId))
+            {
+                ticketDtos = ticketDtos.Where(t => t.CreatedBy == userId);
+            }
+
             return ticketDtos;
         }
 
-        public async Task<TicketDto> GetTicketDtoByIdAsync(int id)
+        public async Task<TicketDto> GetTicketDtoByIdAsync(int id, string userId, bool isAdmin)
         {
             var ticket = await _ticketRepository.GetTicketByIdAsync(id);
-            if (ticket == null) return null;
+            if (ticket == null)
+            {
+                throw new KeyNotFoundException("Ticket not found.");
+            }
+
+            if (!isAdmin && ticket.CreatedBy != userId)
+            {
+                throw new UnauthorizedAccessException("Not allowed to access this ticket.");
+            }
+
             return new TicketDto
             {
                 Id = ticket.Id,
@@ -45,21 +64,47 @@ namespace Tickify.Services
                 Status = ticket.Status,
                 Priority = ticket.Priority,
                 CreatedBy = ticket.CreatedBy,
-                AssignedTo = ticket.AssignedTo
+                AssignedTo = ticket.AssignedTo,
+                ImageUrl = ticket.ImageUrl 
             };
         }
 
-        public async Task<TicketDto> CreateTicketAsync(CreateTicketDto createDto, string userId)
+
+        public async Task<TicketDto> CreateTicketAsync(string title, string description, string priority, string userId, bool isAdmin, IFormFile? image)
         {
+            if (isAdmin)
+            {
+                throw new UnauthorizedAccessException("Admin users are not allowed to create tickets.");
+            }
+
+            string? imageUrl = null;
+
+            if (image != null && image.Length > 0)
+            {
+                var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads");
+                Directory.CreateDirectory(uploadsPath);
+
+                var fileName = $"{Guid.NewGuid()}_{Path.GetFileName(image.FileName)}"; 
+                var filePath = Path.Combine(uploadsPath, fileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await image.CopyToAsync(stream);
+                }
+
+                imageUrl = $"/uploads/{fileName}"; 
+            }
+
             var ticket = new Ticket
             {
-                Title = createDto.Title,
-                Description = createDto.Description,
-                Priority = createDto.Priority,
+                Title = title,
+                Description = description,
+                Priority = priority,
                 Status = "Open",
-                CreatedBy = userId, 
+                CreatedBy = userId,
                 CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now
+                UpdatedAt = DateTime.Now,
+                ImageUrl = imageUrl 
             };
 
             await _ticketRepository.AddTicketAsync(ticket);
@@ -75,16 +120,24 @@ namespace Tickify.Services
                 Status = ticket.Status,
                 Priority = ticket.Priority,
                 CreatedBy = ticket.CreatedBy,
-                AssignedTo = ticket.AssignedTo
+                AssignedTo = ticket.AssignedTo,
+                ImageUrl = ticket.ImageUrl 
             };
         }
 
-        public async Task UpdateTicketAsync(int id, UpdateTicketDto updateDto)
+
+
+        public async Task UpdateTicketAsync(int id, UpdateTicketDto updateDto, string userId, bool isAdmin)
         {
             var ticket = await _ticketRepository.GetTicketByIdAsync(id);
             if (ticket == null)
             {
-                throw new Exception("Ticket not found");
+                throw new KeyNotFoundException("Ticket not found.");
+            }
+
+            if (!isAdmin && ticket.CreatedBy != userId)
+            {
+                throw new UnauthorizedAccessException("Not allowed to update this ticket.");
             }
 
             ticket.Title = updateDto.Title;
@@ -98,16 +151,63 @@ namespace Tickify.Services
             await _ticketRepository.SaveChangesAsync();
         }
 
-        public async Task DeleteTicketAsync(int id)
+        public async Task DeleteTicketAsync(int id, string userId, bool isAdmin)
         {
             var ticket = await _ticketRepository.GetTicketByIdAsync(id);
-            if (ticket != null)
+            if (ticket == null)
             {
-                _ticketRepository.DeleteTicket(ticket);
+                throw new KeyNotFoundException("Ticket not found.");
+            }
+
+            if (!isAdmin && ticket.CreatedBy != userId)
+            {
+                throw new UnauthorizedAccessException("Not allowed to delete this ticket.");
+            }
+
+            _ticketRepository.DeleteTicket(ticket);
+            await _ticketRepository.SaveChangesAsync();
+        }
+
+        public async Task<bool> DeleteTicketImageAsync(int ticketId, string userId, bool isAdmin)
+        {
+            var ticket = await _ticketRepository.GetTicketByIdAsync(ticketId);
+            if (ticket == null)
+            {
+                throw new KeyNotFoundException("Ticket not found.");
+            }
+
+            if (!isAdmin && ticket.CreatedBy != userId)
+            {
+                throw new UnauthorizedAccessException("Not allowed to delete this ticket image.");
+            }
+
+            if (string.IsNullOrEmpty(ticket.ImageUrl))
+            {
+                return false; 
+            }
+
+            try
+            {
+                var imagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", ticket.ImageUrl.TrimStart('/'));
+
+                if (File.Exists(imagePath))
+                {
+                    File.Delete(imagePath);
+                }
+
+                ticket.ImageUrl = null;
+                _ticketRepository.UpdateTicket(ticket);
                 await _ticketRepository.SaveChangesAsync();
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting image: {ex.Message}");
+                return false;
             }
         }
+
+
     }
-
-
 }
