@@ -29,6 +29,8 @@ namespace Tickify.Services.Authentication
                 return authResult;
             }
 
+            await _userManager.AddToRoleAsync(user, role);
+
             return new AuthResult(true, email, username, "");
         }
 
@@ -50,9 +52,13 @@ namespace Tickify.Services.Authentication
                 return authResult;
             }
 
-            var token = _tokenService.CreateToken(user);
+            var roles = await _userManager.GetRolesAsync(user);
+            string userRole = roles.FirstOrDefault() ?? "User"; 
+
+            var token = _tokenService.CreateToken(user, userRole);
 
             return new AuthResult(true, user.Email, user.UserName, token);
         }
+
     }
 }
