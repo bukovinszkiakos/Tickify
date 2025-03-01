@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Security.Claims;
 using System.Text;
 using Tickify.Context;
 using Tickify.Repositories;
@@ -18,6 +19,29 @@ AddAuthentication();
 AddIdentity();
 
 var app = builder.Build();
+
+app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+        Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads")),
+    RequestPath = "/uploads"
+});
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+        Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")),
+    RequestPath = "/static"
+});
+
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var roleSeeder = services.GetRequiredService<RoleSeeder>();
+    await roleSeeder.SeedRolesAndAdminAsync();
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -42,6 +66,11 @@ void AddServices()
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddScoped<RoleSeeder>();
+    builder.Services.AddScoped<ITicketCommentRepository, TicketCommentRepository>();
+    builder.Services.AddScoped<ITicketCommentService, TicketCommentService>();
+
+
 }
 void ConfigureSwagger()
 {
@@ -93,7 +122,8 @@ void AddAuthentication()
                 ValidateIssuerSigningKey = true,
                 ValidIssuer = jwtSection["ValidIssuer"],
                 ValidAudience = jwtSection["ValidAudience"],
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSection["IssuerSigningKey"]))
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSection["IssuerSigningKey"])),
+                RoleClaimType = ClaimTypes.Role // 👉 Ezzel biztosítod, hogy a role claim megfelelően legyen felismerve
             };
 
             options.Events = new JwtBearerEvents
@@ -109,6 +139,7 @@ void AddAuthentication()
             };
         });
 }
+
 void AddIdentity()
 {
     builder.Services
@@ -122,6 +153,9 @@ void AddIdentity()
             options.Password.RequireUppercase = false;
             options.Password.RequireLowercase = false;
         })
+        .AddRoles<IdentityRole>() 
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
 }
+
+
