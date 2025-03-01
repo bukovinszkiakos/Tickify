@@ -1,15 +1,11 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Tickify.Models;
 
 namespace Tickify.Context
 {
-    using Microsoft.AspNetCore.Identity;
-    using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-    using Microsoft.EntityFrameworkCore;
-
-    public class ApplicationDbContext : IdentityDbContext<IdentityUser>
+    public class ApplicationDbContext : IdentityDbContext<IdentityUser, IdentityRole, string>
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -23,22 +19,19 @@ namespace Tickify.Context
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder); 
+
             modelBuilder.Entity<Ticket>()
                 .HasOne(t => t.Assignee)
                 .WithMany()
                 .HasForeignKey(t => t.AssignedTo)
-                .OnDelete(DeleteBehavior.SetNull); 
-
+                .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Ticket>()
                 .HasOne(t => t.Creator)
                 .WithMany()
-                .HasForeignKey(t => t.CreatedBy) 
+                .HasForeignKey(t => t.CreatedBy)
                 .OnDelete(DeleteBehavior.Restrict);
-
-            base.OnModelCreating(modelBuilder);
         }
-
     }
-
 }
