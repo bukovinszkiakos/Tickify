@@ -73,7 +73,6 @@ namespace Tickify.Controllers
             return Ok(new { message = "Logout successful" });
         }
 
-        [Authorize]
         [HttpGet("Me")]
         public IActionResult Me()
         {
@@ -83,13 +82,16 @@ namespace Tickify.Controllers
 
             var email = user.FindFirst(ClaimTypes.Email)?.Value;
             var username = user.FindFirst(ClaimTypes.Name)?.Value;
+            var roles = user.FindAll(ClaimTypes.Role).Select(r => r.Value).ToList();
+
             var expClaim = user.FindFirst("exp")?.Value;
             long expirationUnix = 0;
             if (expClaim != null)
             {
                 long.TryParse(expClaim, out expirationUnix);
             }
-            return Ok(new { email, username, expirationUnix });
+            return Ok(new { email, username, roles, expirationUnix });
         }
+
     }
 }
