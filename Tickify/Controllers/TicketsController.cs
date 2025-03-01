@@ -1,63 +1,97 @@
-﻿namespace Tickify.Controllers
-{
-    using Microsoft.AspNetCore.Mvc;
-    using Tickify.DTOs;
-    using Microsoft.AspNetCore.Authorization;
-    using System.Security.Claims;
-    using Tickify.Services;
-    using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+using Tickify.DTOs;
+using Tickify.Services;
+using Microsoft.AspNetCore.Identity;
+using System.Linq;
+using System.Threading.Tasks;
 
+namespace Tickify.Controllers
+{
     [ApiController]
-    [Authorize]
+    [Authorize(Roles = "Admin,User")]
     [Route("api/[controller]")]
     public class TicketsController : ControllerBase
     {
         private readonly ITicketService _ticketService;
-        private readonly UserManager<IdentityUser> _userManager; 
+        private readonly UserManager<IdentityUser> _userManager;
 
         public TicketsController(ITicketService ticketService, UserManager<IdentityUser> userManager)
         {
             _ticketService = ticketService;
-            _userManager = userManager; 
+            _userManager = userManager;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetTickets()
         {
-            var ticketDtos = await _ticketService.GetAllTicketsDtoAsync();
+            var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var roles = HttpContext.User.FindAll(ClaimTypes.Role).Select(r => r.Value).ToList();
+            bool isAdmin = roles.Contains("Admin");
+
+            var ticketDtos = await _ticketService.GetTicketsForUserAsync(userId, isAdmin);
             return Ok(ticketDtos);
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetTicket(int id)
         {
-            var ticketDto = await _ticketService.GetTicketDtoByIdAsync(id);
-            if (ticketDto == null)
-                return NotFound();
-            return Ok(ticketDto);
+            var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var roles = HttpContext.User.FindAll(ClaimTypes.Role).Select(r => r.Value).ToList();
+            bool isAdmin = roles.Contains("Admin");
+
+            try
+            {
+                var ticketDto = await _ticketService.GetTicketDtoByIdAsync(id, userId, isAdmin);
+
+                if (!string.IsNullOrEmpty(ticketDto.ImageUrl))
+                {
+                    ticketDto.ImageUrl = $"{Request.Scheme}://{Request.Host}{ticketDto.ImageUrl}";
+                }
+
+                return Ok(ticketDto);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
         }
+
 
         [HttpPost]
-        public async Task<IActionResult> CreateTicket([FromBody] CreateTicketDto createDto)
+        public async Task<IActionResult> CreateTicket(
+         [FromForm] string title,
+         [FromForm] string description,
+         [FromForm] string priority,
+         [FromForm] IFormFile? image)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var userIdClaim = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier);
-            if (userIdClaim == null)
+            var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null)
                 return Unauthorized("User ID not found in token.");
 
-            string userId = userIdClaim.Value;
+            bool isAdmin = HttpContext.User.IsInRole("Admin");
 
-            Console.WriteLine($"Token userId: {userId}"); 
-
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
-                return Unauthorized("User not found in the database.");
-
-            var ticketDto = await _ticketService.CreateTicketAsync(createDto, userId);
-            return CreatedAtAction(nameof(GetTicket), new { id = ticketDto.Id }, ticketDto);
+            try
+            {
+                var ticketDto = await _ticketService.CreateTicketAsync(title, description, priority, userId, isAdmin, image);
+                return CreatedAtAction(nameof(GetTicket), new { id = ticketDto.Id }, ticketDto);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
+
+
 
 
         [HttpPut("{id}")]
@@ -66,18 +100,74 @@
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            await _ticketService.UpdateTicketAsync(id, updateDto);
-            return NoContent();
+            var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var roles = HttpContext.User.FindAll(ClaimTypes.Role).Select(r => r.Value).ToList();
+            bool isAdmin = roles.Contains("Admin");
+
+            try
+            {
+                await _ticketService.UpdateTicketAsync(id, updateDto, userId, isAdmin);
+                return Ok(new { message = "Ticket updated successfully" });
+
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTicket(int id)
         {
-            await _ticketService.DeleteTicketAsync(id);
-            return NoContent();
+            var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var roles = HttpContext.User.FindAll(ClaimTypes.Role).Select(r => r.Value).ToList();
+            bool isAdmin = roles.Contains("Admin");
+
+            try
+            {
+                await _ticketService.DeleteTicketAsync(id, userId, isAdmin);
+                return NoContent();
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
         }
+
+        [HttpDelete("{id}/image")]
+        public async Task<IActionResult> DeleteTicketImage(int id)
+        {
+            var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var roles = HttpContext.User.FindAll(ClaimTypes.Role).Select(r => r.Value).ToList();
+            bool isAdmin = roles.Contains("Admin");
+
+            try
+            {
+                var result = await _ticketService.DeleteTicketImageAsync(id, userId, isAdmin);
+                if (!result)
+                {
+                    return NotFound("Image not found or already deleted.");
+                }
+                return Ok(new { message = "Image deleted successfully." });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest("Failed to delete image.");
+            }
+        }
+
+
     }
-
-
-
 }
