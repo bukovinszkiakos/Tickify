@@ -10,8 +10,6 @@ namespace Tickify.Repositories
         void UpdateTicket(Ticket ticket);
         void DeleteTicket(Ticket ticket);
         Task SaveChangesAsync();
-
-        // Specifikus metódusok, ha szükséges:
         Task<IEnumerable<Ticket>> GetTicketsByUserAsync(string userId);
     }
 
