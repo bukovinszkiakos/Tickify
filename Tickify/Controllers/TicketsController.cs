@@ -65,10 +65,10 @@ namespace Tickify.Controllers
 
         [HttpPost]
         public async Task<IActionResult> CreateTicket(
-         [FromForm] string title,
-         [FromForm] string description,
-         [FromForm] string priority,
-         [FromForm] IFormFile? image)
+    [FromForm] string title,
+    [FromForm] string description,
+    [FromForm] string priority,
+    [FromForm] IFormFile? image)
         {
             var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (userId == null)
@@ -76,9 +76,12 @@ namespace Tickify.Controllers
 
             bool isAdmin = HttpContext.User.IsInRole("Admin");
 
+            var scheme = Request.Scheme;
+            var host = Request.Host.Value;
+
             try
             {
-                var ticketDto = await _ticketService.CreateTicketAsync(title, description, priority, userId, isAdmin, image);
+                var ticketDto = await _ticketService.CreateTicketAsync(title, description, priority, userId, isAdmin, image, scheme, host);
                 return CreatedAtAction(nameof(GetTicket), new { id = ticketDto.Id }, ticketDto);
             }
             catch (UnauthorizedAccessException ex)
@@ -94,8 +97,12 @@ namespace Tickify.Controllers
 
 
 
+
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateTicket(int id, [FromBody] UpdateTicketDto updateDto)
+        public async Task<IActionResult> UpdateTicket(
+     int id,
+     [FromForm] UpdateTicketDto updateDto,
+     [FromForm] IFormFile? image)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -104,11 +111,13 @@ namespace Tickify.Controllers
             var roles = HttpContext.User.FindAll(ClaimTypes.Role).Select(r => r.Value).ToList();
             bool isAdmin = roles.Contains("Admin");
 
+            var scheme = Request.Scheme;
+            var host = Request.Host.Value;
+
             try
             {
-                await _ticketService.UpdateTicketAsync(id, updateDto, userId, isAdmin);
+                await _ticketService.UpdateTicketAsync(id, updateDto, userId, isAdmin, image, scheme, host);
                 return Ok(new { message = "Ticket updated successfully" });
-
             }
             catch (UnauthorizedAccessException ex)
             {
@@ -119,6 +128,7 @@ namespace Tickify.Controllers
                 return NotFound(ex.Message);
             }
         }
+
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTicket(int id)
