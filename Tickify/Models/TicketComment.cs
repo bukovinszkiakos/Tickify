@@ -12,6 +12,9 @@ namespace Tickify.Models
         public string Comment { get; set; }
         public string? ImageUrl { get; set; }  
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+        public string CommenterName { get; set; }// új mező
+
     }
 
 }
