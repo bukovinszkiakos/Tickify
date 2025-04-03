@@ -77,7 +77,8 @@ namespace Tickify.Controllers
         public IActionResult Me()
         {
             var user = HttpContext.User;
-            if (user == null)
+
+            if (user?.Identity == null || !user.Identity.IsAuthenticated)
                 return Unauthorized();
 
             var email = user.FindFirst(ClaimTypes.Email)?.Value;
@@ -86,12 +87,14 @@ namespace Tickify.Controllers
 
             var expClaim = user.FindFirst("exp")?.Value;
             long expirationUnix = 0;
-            if (expClaim != null)
+            if (!string.IsNullOrEmpty(expClaim)) 
             {
                 long.TryParse(expClaim, out expirationUnix);
             }
+
             return Ok(new { email, username, roles, expirationUnix });
         }
+
 
     }
 }
