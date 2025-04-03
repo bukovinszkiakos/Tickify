@@ -33,8 +33,8 @@ namespace Tickify.Controllers
                 c.Id,
                 c.Comment,
                 c.CreatedAt,
-                c.ImageUrl, 
-                Commenter = c.Commenter != null ? c.Commenter.UserName : "Unknown"
+                c.ImageUrl,
+                Commenter = !string.IsNullOrWhiteSpace(c.CommenterName) ? c.CommenterName : "Unknown"
             });
 
             return Ok(result);
@@ -67,7 +67,8 @@ namespace Tickify.Controllers
 
             try
             {
-                await _ticketCommentService.AddCommentAsync(ticketId, comment, userId, imageUrl);
+                var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "Unknown";
+                await _ticketCommentService.AddCommentAsync(ticketId, comment, userId, username, imageUrl);
                 return Ok(new { message = "Comment added successfully", imageUrl });
             }
             catch (KeyNotFoundException ex)
