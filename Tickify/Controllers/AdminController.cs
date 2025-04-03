@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Tickify.Services;
 using Tickify.DTOs;
+using Microsoft.Extensions.Hosting;
 
 namespace Tickify.Controllers
 {
@@ -81,30 +82,17 @@ namespace Tickify.Controllers
 
             try
             {
-                var ticketDto = await _ticketService.GetTicketDtoByIdAsync(id, null, true);
-
-                var updateDto = new UpdateTicketDto
-                {
-                    Title = ticketDto.Title,
-                    Description = ticketDto.Description,
-                    Status = newStatus,
-                    Priority = ticketDto.Priority,
-                    AssignedTo = ticketDto.AssignedTo
-                };
-
-                await _ticketService.UpdateTicketAsync(id, updateDto, null, true);
-
+                var adminName = User.Identity?.Name ?? "Admin";
+                await _ticketService.UpdateTicketStatusAsync(id, newStatus, adminName);
                 return Ok(new { message = "Ticket status updated" });
             }
             catch (KeyNotFoundException ex)
             {
                 return NotFound(ex.Message);
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
-            }
         }
+
+
 
         [HttpGet("dashboard")]
         public async Task<IActionResult> GetDashboardStats()
