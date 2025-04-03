@@ -23,7 +23,8 @@ namespace Tickify.Services
             return await _commentRepository.GetCommentsByTicketIdAsync(ticketId);
         }
 
-        public async Task AddCommentAsync(int ticketId, string comment, string userId, string? imageUrl)
+        // 🔧 MÓDOSÍTOTT metódus - fogadja a username-et is
+        public async Task AddCommentAsync(int ticketId, string comment, string userId, string username, string? imageUrl)
         {
             var ticket = await _ticketRepository.GetTicketByIdAsync(ticketId);
             if (ticket == null)
@@ -37,7 +38,8 @@ namespace Tickify.Services
                 Comment = comment,
                 CommentedBy = userId,
                 CreatedAt = DateTime.Now,
-                ImageUrl = imageUrl 
+                ImageUrl = imageUrl,
+                CommenterName = username // 🔥 Itt tároljuk a felhasználó nevét is
             };
 
             await _commentRepository.AddCommentAsync(newComment);
