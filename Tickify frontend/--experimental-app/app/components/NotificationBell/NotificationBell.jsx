@@ -11,7 +11,7 @@ export default function NotificationBell() {
   const { notifications, loading, setNotifications } = useNotifications();
   const [open, setOpen] = useState(false);
   const router = useRouter();
-  const dropdownRef = useRef(null); // 🔁 ref a dropdown-ra
+  const dropdownRef = useRef(null); 
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
@@ -37,7 +37,6 @@ export default function NotificationBell() {
     }
   };
 
-  // 🔒 Bezárás ha kívülre kattintanak
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
