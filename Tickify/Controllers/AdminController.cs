@@ -11,7 +11,6 @@ using Microsoft.Extensions.Hosting;
 namespace Tickify.Controllers
 {
     [ApiController]
-    [Authorize(Roles = "Admin")]
     [Route("api/admin")]
     public class AdminController : ControllerBase
     {
@@ -23,39 +22,68 @@ namespace Tickify.Controllers
             _userManager = userManager;
             _ticketService = ticketService;
         }
-
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpGet("users")]
         public async Task<IActionResult> GetUsers()
         {
-            var users = await _userManager.Users
-                .Select(u => new { u.Id, u.UserName, u.Email })
-                .ToListAsync();
+            var users = await _userManager.Users.ToListAsync();
 
-            return Ok(users);
+            var result = new List<object>();
+
+            foreach (var user in users)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+
+                result.Add(new
+                {
+                    user.Id,
+                    user.UserName,
+                    user.Email,
+                    Roles = roles 
+                });
+            }
+
+            return Ok(result);
         }
 
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpDelete("users/{userId}")]
         public async Task<IActionResult> DeleteUser(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null) return NotFound("User not found");
 
+            var roles = await _userManager.GetRolesAsync(user);
+
+            if (roles.Contains("SuperAdmin") && User.IsInRole("Admin") && !User.IsInRole("SuperAdmin"))
+            {
+                return Forbid("Admins cannot delete SuperAdmins.");
+            }
+
             await _userManager.DeleteAsync(user);
             return Ok(new { message = "User deleted successfully" });
         }
 
+
+        [Authorize(Roles = "SuperAdmin")]
         [HttpPost("users/{userId}/role/{role}")]
         public async Task<IActionResult> AssignRole(string userId, string role)
         {
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null) return NotFound("User not found");
 
-            var result = await _userManager.AddToRoleAsync(user, role);
-            if (!result.Succeeded) return BadRequest(result.Errors);
+            var currentRoles = await _userManager.GetRolesAsync(user);
 
-            return Ok(new { message = $"User {user.UserName} assigned to role {role}" });
+            var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
+            if (!removeResult.Succeeded) return BadRequest(removeResult.Errors);
+
+            var addResult = await _userManager.AddToRoleAsync(user, role);
+            if (!addResult.Succeeded) return BadRequest(addResult.Errors);
+
+            return Ok(new { message = $"User {user.UserName} role set to {role}" });
         }
 
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpGet("tickets")]
         public async Task<IActionResult> GetAllTickets([FromQuery] string status = "", [FromQuery] string priority = "")
         {
@@ -69,7 +97,7 @@ namespace Tickify.Controllers
 
             return Ok(tickets);
         }
-
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpPut("tickets/{id}/status/{newStatus}")]
         public async Task<IActionResult> UpdateTicketStatus(int id, string newStatus)
         {
@@ -93,7 +121,7 @@ namespace Tickify.Controllers
         }
 
 
-
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpGet("dashboard")]
         public async Task<IActionResult> GetDashboardStats()
         {
