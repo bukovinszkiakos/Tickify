@@ -1,8 +1,10 @@
 "use client";
-import React, { useState } from "react";
+
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "../../../utils/api";
-import "../../styles/RegisterPage.css"; 
+import Link from "next/link";
+import "../../styles/RegisterPage.css";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -10,6 +12,14 @@ export default function RegisterPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.type = "module";
+    script.src =
+      "https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js";
+    document.body.appendChild(script);
+  }, []);
 
   async function handleRegister(e) {
     e.preventDefault();
@@ -28,35 +38,64 @@ export default function RegisterPage() {
 
   return (
     <div className="register-container">
-      <h1>Register</h1>
-      {error && <p className="error-message">{error}</p>}
-      <form onSubmit={handleRegister}>
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-          className="register-input"
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="register-input"
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="register-input"
-        />
-        <button type="submit" className="register-button">Register</button>
-      </form>
+      <div className="register-box">
+        <h2>Register</h2>
+        {error && <p className="error-message">{error}</p>}
+
+        <form onSubmit={handleRegister}>
+          <div className="input-box">
+            <span className="icon">
+              <ion-icon name="person"></ion-icon>
+            </span>
+            <input
+              type="text"
+              required
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder=" "
+            />
+            <label>Username</label>
+          </div>
+
+          <div className="input-box">
+            <span className="icon">
+              <ion-icon name="mail"></ion-icon>
+            </span>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder=" "
+            />
+            <label>Email</label>
+          </div>
+
+          <div className="input-box">
+            <span className="icon">
+              <ion-icon name="lock-closed"></ion-icon>
+            </span>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder=" "
+            />
+            <label>Password</label>
+          </div>
+
+          <button type="submit" className="btn">
+            Register
+          </button>
+
+          <div className="login-register">
+            <p>
+              Already have an account? <Link href="/login">Login</Link>
+            </p>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
