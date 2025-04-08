@@ -1,9 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Tickify.Models;
 using Tickify.Repositories;
 using Tickify.DTOs;
+using Tickify.Context;
+using Microsoft.EntityFrameworkCore;
 
 namespace Tickify.Services
 {
@@ -11,11 +12,16 @@ namespace Tickify.Services
     {
         private readonly ITicketCommentRepository _commentRepository;
         private readonly ITicketRepository _ticketRepository;
+        private readonly ApplicationDbContext _dbContext; 
 
-        public TicketCommentService(ITicketCommentRepository commentRepository, ITicketRepository ticketRepository)
+        public TicketCommentService(
+            ITicketCommentRepository commentRepository,
+            ITicketRepository ticketRepository,
+            ApplicationDbContext dbContext)
         {
             _commentRepository = commentRepository;
             _ticketRepository = ticketRepository;
+            _dbContext = dbContext;
         }
 
         public async Task<IEnumerable<TicketComment>> GetCommentsByTicketIdAsync(int ticketId)
@@ -23,14 +29,11 @@ namespace Tickify.Services
             return await _commentRepository.GetCommentsByTicketIdAsync(ticketId);
         }
 
-        // 🔧 MÓDOSÍTOTT metódus - fogadja a username-et is
         public async Task AddCommentAsync(int ticketId, string comment, string userId, string username, string? imageUrl)
         {
             var ticket = await _ticketRepository.GetTicketByIdAsync(ticketId);
             if (ticket == null)
-            {
                 throw new KeyNotFoundException("Ticket not found.");
-            }
 
             var newComment = new TicketComment
             {
@@ -39,11 +42,65 @@ namespace Tickify.Services
                 CommentedBy = userId,
                 CreatedAt = DateTime.Now,
                 ImageUrl = imageUrl,
-                CommenterName = username // 🔥 Itt tároljuk a felhasználó nevét is
+                CommenterName = username
             };
 
             await _commentRepository.AddCommentAsync(newComment);
             await _commentRepository.SaveChangesAsync();
+
+            var notifications = new List<Notification>();
+
+            var previousCommenters = await _dbContext.TicketComments
+                .Where(c => c.TicketId == ticketId && c.CommentedBy != userId)
+                .Select(c => c.CommentedBy)
+                .Distinct()
+                .ToListAsync();
+
+            int.TryParse(userId, out int parsedUserId);
+
+            var statusChangers = await _dbContext.TicketHistories
+                .Where(h => h.TicketId == ticketId && h.ChangedBy != parsedUserId)
+                .Select(h => h.ChangedBy.ToString()) 
+                .Distinct()
+                .ToListAsync();
+
+
+            var relatedAdmins = previousCommenters
+                .Concat(statusChangers)
+                .Distinct()
+                .Where(adminId => adminId != ticket.CreatedBy)
+                .ToList();
+
+            foreach (var adminId in relatedAdmins)
+            {
+                notifications.Add(new Notification
+                {
+                    UserId = adminId,
+                    Message = $"💬 {username} commented on ticket \"{ticket.Title}\"",
+                    TicketId = ticket.Id.ToString(),
+                    CreatedAt = DateTime.UtcNow,
+                    IsRead = false
+                });
+            }
+
+            if (ticket.CreatedBy != userId)
+            {
+                notifications.Add(new Notification
+                {
+                    UserId = ticket.CreatedBy,
+                    Message = $"💬 {username} commented on your ticket \"{ticket.Title}\"",
+                    TicketId = ticket.Id.ToString(),
+                    CreatedAt = DateTime.UtcNow,
+                    IsRead = false
+                });
+            }
+
+            if (notifications.Any())
+            {
+                await _dbContext.Notifications.AddRangeAsync(notifications);
+                await _dbContext.SaveChangesAsync();
+            }
         }
+
     }
 }
