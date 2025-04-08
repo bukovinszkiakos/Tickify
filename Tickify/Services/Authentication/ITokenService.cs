@@ -4,6 +4,6 @@ namespace Tickify.Services.Authentication
 {
     public interface ITokenService
     {
-        string CreateToken(IdentityUser user, string role = null);
+        string CreateToken(IdentityUser user, List<string> roles);
     }
 }
