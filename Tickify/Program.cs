@@ -123,7 +123,7 @@ void AddAuthentication()
                 ValidIssuer = jwtSection["ValidIssuer"],
                 ValidAudience = jwtSection["ValidAudience"],
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSection["IssuerSigningKey"])),
-                RoleClaimType = ClaimTypes.Role // 👉 Ezzel biztosítod, hogy a role claim megfelelően legyen felismerve
+                RoleClaimType = ClaimTypes.Role 
             };
 
             options.Events = new JwtBearerEvents
