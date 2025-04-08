@@ -17,21 +17,28 @@ namespace Tickify.Context
         public DbSet<TicketHistory> TicketHistories { get; set; }
         public DbSet<TicketReview> TicketReviews { get; set; }
 
+        public DbSet<Notification> Notifications { get; set; }
+
+        public DbSet<CommentReadStatus> CommentReadStatuses { get; set; }
+
+
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            base.OnModelCreating(modelBuilder); 
+            base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<Ticket>()
-                .HasOne(t => t.Assignee)
-                .WithMany()
-                .HasForeignKey(t => t.AssignedTo)
-                .OnDelete(DeleteBehavior.SetNull);
+     .HasOne(t => t.Assignee)
+     .WithMany()
+     .HasForeignKey(t => t.AssignedTo)
+     .OnDelete(DeleteBehavior.Restrict); 
 
             modelBuilder.Entity<Ticket>()
                 .HasOne(t => t.Creator)
                 .WithMany()
                 .HasForeignKey(t => t.CreatedBy)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
+
         }
     }
 }
