@@ -1,8 +1,11 @@
 "use client";
+
 import React from "react";
 import Link from "next/link";
 import { useAuth } from "../../context/AuthContext";
-import "../../styles/Navbar.css"; 
+import { Player } from "@lottiefiles/react-lottie-player";
+import "../../styles/Navbar.css";
+import NotificationBell from "../NotificationBell/NotificationBell"; // 🔔
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -15,30 +18,115 @@ export default function Navbar() {
     }
   }
 
+  const isAdmin = user?.roles?.includes("Admin");
+  const isSuperAdmin = user?.roles?.includes("SuperAdmin");
+
   return (
-    <nav className="navbar">
-      <div className="navbar-links">
-        <Link href="/">Home</Link>
+    <header className="heading">
+      <nav className="navbar">
+        <div className="navbar-links">
+          <Link href="/" className="nav-link">
+            <button className="nav-button">
+              Home
+              <Player
+                src="/animations/home-animation.json"
+                className="animation"
+                autoplay
+                loop
+              />
+            </button>
+          </Link>
 
-        {user ? (
-          <>
-            {!user.isAdmin && <Link href="/tickets">My Tickets</Link>}
-            {user.isAdmin && <Link href="/admin/tickets">Manage Tickets</Link>}
-            {user.isAdmin && <Link href="/admin">Admin</Link>}
-          </>
-        ) : (
-          <>
-            <Link href="/login">Login</Link>
-            <Link href="/register">Register</Link>
-          </>
+          {user ? (
+            <>
+             
+              {!isAdmin && !isSuperAdmin && (
+                <Link href="/tickets" className="nav-link">
+                  <button className="nav-button">
+                    My Tickets
+                    <Player
+                      src="/animations/tickets-animation.json"
+                      className="animation"
+                      autoplay
+                      loop
+                    />
+                  </button>
+                </Link>
+              )}
+
+              
+              {(isAdmin || isSuperAdmin) && (
+                <>
+                  <Link href="/admin/tickets" className="nav-link">
+                    <button className="nav-button">
+                      Manage
+                      <Player
+                        src="/animations/manage-animation.json"
+                        className="animation"
+                        autoplay
+                        loop
+                      />
+                    </button>
+                  </Link>
+
+                  <Link href="/admin" className="nav-link">
+                    <button className="nav-button">
+                      Admin
+                      <Player
+                        src="/animations/admin-animation.json"
+                        className="animation"
+                        autoplay
+                        loop
+                      />
+                    </button>
+                  </Link>
+                </>
+              )}
+
+              
+              <NotificationBell />
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="nav-link">
+                <button className="nav-button">
+                  Login
+                  <Player
+                    src="/animations/login-animation.json"
+                    className="animation"
+                    autoplay
+                    loop
+                  />
+                </button>
+              </Link>
+
+              <Link href="/register" className="nav-link">
+                <button className="nav-button">
+                  Register
+                  <Player
+                    src="/animations/register-animation.json"
+                    className="animation"
+                    autoplay
+                    loop
+                  />
+                </button>
+              </Link>
+            </>
+          )}
+        </div>
+
+        {user && (
+          <button className="logout-button" onClick={handleLogout}>
+            Logout
+            <Player
+              src="/animations/logout-animation.json"
+              className="animation"
+              autoplay
+              loop
+            />
+          </button>
         )}
-      </div>
-
-      {user && (
-        <button className="logout-button" onClick={handleLogout}>
-          Logout
-        </button>
-      )}
-    </nav>
+      </nav>
+    </header>
   );
 }
