@@ -22,8 +22,10 @@ export function middleware(request) {
     }
 
     const userRoles = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
-    const isAdmin = Array.isArray(userRoles) ? userRoles.includes("Admin") : userRoles === "Admin";
-
+    const isAdmin = Array.isArray(userRoles)
+    ? userRoles.includes("Admin") || userRoles.includes("SuperAdmin")
+    : userRoles === "Admin" || userRoles === "SuperAdmin";
+  
 
     if (isAdmin && pathname === "/tickets") {
       const adminUrl = request.nextUrl.clone();
