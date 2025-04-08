@@ -53,12 +53,10 @@ namespace Tickify.Services.Authentication
             }
 
             var roles = await _userManager.GetRolesAsync(user);
-            string userRole = roles.FirstOrDefault() ?? "User"; 
 
-            var token = _tokenService.CreateToken(user, userRole);
+            var token = _tokenService.CreateToken(user, roles.ToList());
 
             return new AuthResult(true, user.Email, user.UserName, token);
         }
-
     }
 }
