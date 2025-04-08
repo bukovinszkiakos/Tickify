@@ -1,16 +1,25 @@
-import React from "react";
+"use client";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import "../../styles/Footer.css"; 
+import "../../styles/Footer.css";
 
-export default function Footer() {
+const Footer = () => {
+  const [year, setYear] = useState("");
+
+  useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
+
   return (
     <footer className="footer">
-      <p>© 2023 Tickify - All rights reserved.</p>
+      <p>© {year} Tickify. All rights reserved.</p>
       <p>
         <Link href="/privacy">Privacy</Link>
-        <span> | </span>
+        |
         <Link href="/terms">Terms</Link>
       </p>
     </footer>
   );
-}
+};
+
+export default Footer;
