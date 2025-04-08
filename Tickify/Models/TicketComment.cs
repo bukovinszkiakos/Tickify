@@ -13,7 +13,7 @@ namespace Tickify.Models
         public string? ImageUrl { get; set; }  
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
-        public string CommenterName { get; set; }// új mező
+        public string CommenterName { get; set; }
 
     }
 
