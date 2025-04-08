@@ -1,10 +1,12 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Tickify.Context;
 using Tickify.DTOs;
 using Tickify.Models;
 using Tickify.Repositories;
@@ -16,20 +18,43 @@ namespace Tickify.Services
         private readonly ITicketRepository _ticketRepository;
         private readonly UserManager<IdentityUser> _userManager;
         private readonly ITicketCommentService _ticketCommentService;
+        private readonly ApplicationDbContext _dbContext;
 
         public TicketService(
             ITicketRepository ticketRepository,
             UserManager<IdentityUser> userManager,
-            ITicketCommentService ticketCommentService)
+            ITicketCommentService ticketCommentService,
+            ApplicationDbContext dbContext)
         {
             _ticketRepository = ticketRepository;
             _userManager = userManager;
             _ticketCommentService = ticketCommentService;
+            _dbContext = dbContext;
         }
 
         public async Task<IEnumerable<TicketDto>> GetTicketsForUserAsync(string userId, bool isAdmin)
         {
             var tickets = await _ticketRepository.GetAllTicketsAsync();
+
+            var commentCounts = await _dbContext.TicketComments
+                .GroupBy(c => c.TicketId)
+                .Select(g => new
+                {
+                    TicketId = g.Key,
+                    Total = g.Count()
+                })
+                .ToListAsync();
+
+            var unreadCounts = await _dbContext.TicketComments
+                .Where(c => !_dbContext.CommentReadStatuses
+                    .Any(r => r.CommentId == c.Id && r.UserId == userId))
+                .GroupBy(c => c.TicketId)
+                .Select(g => new
+                {
+                    TicketId = g.Key,
+                    Unread = g.Count()
+                })
+                .ToListAsync();
 
             var ticketDtos = tickets.Select(t => new TicketDto
             {
@@ -41,7 +66,10 @@ namespace Tickify.Services
                 Status = t.Status,
                 Priority = t.Priority,
                 CreatedBy = t.CreatedBy,
-                AssignedTo = t.AssignedTo
+                AssignedTo = t.AssignedTo,
+
+                TotalCommentCount = commentCounts.FirstOrDefault(c => c.TicketId == t.Id)?.Total ?? 0,
+                UnreadCommentCount = unreadCounts.FirstOrDefault(u => u.TicketId == t.Id)?.Unread ?? 0
             });
 
             if (!isAdmin && !string.IsNullOrEmpty(userId))
@@ -51,6 +79,7 @@ namespace Tickify.Services
 
             return ticketDtos;
         }
+
 
         public async Task<TicketDto> GetTicketDtoByIdAsync(int id, string userId, bool isAdmin)
         {
@@ -181,13 +210,11 @@ namespace Tickify.Services
             string? newImageUrl = null;
             bool imageChanged = false;
 
-            // 🧠 Mentsük el előre az aktuális kép URL-jét (ami jelenleg a tickethez tartozik)
             if (!string.IsNullOrEmpty(ticket.ImageUrl))
             {
                 oldImageUrl = $"{scheme}://{host}{ticket.ImageUrl}";
             }
 
-            // Szövegmezők változásainak figyelése
             if (ticket.Title != updateDto.Title)
             {
                 changes.Add($"Title: \"{ticket.Title}\" → \"{updateDto.Title}\"");
@@ -212,7 +239,6 @@ namespace Tickify.Services
                 ticket.AssignedTo = updateDto.AssignedTo;
             }
 
-            // 🔄 Kép frissítése – a régit nem töröljük, csak új fájlt töltünk fel
             if (image != null && image.Length > 0)
             {
                 var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads");
@@ -240,7 +266,6 @@ namespace Tickify.Services
             {
                 var commentText = "🔄 Ticket updated:\n" + string.Join("\n", changes);
 
-                // 💬 Ha képcsere történt, mutatjuk a korábbi és új képet
                 if (imageChanged && oldImageUrl != null && newImageUrl != null)
                 {
                     commentText += $"\nOld image: {oldImageUrl}\nNew image: {newImageUrl}";
@@ -265,13 +290,10 @@ namespace Tickify.Services
         {
             var ticket = await _ticketRepository.GetTicketByIdAsync(ticketId);
             if (ticket == null)
-            {
                 throw new KeyNotFoundException("Ticket not found.");
-            }
 
             var oldStatus = ticket.Status;
 
-            // Ne csináljunk semmit, ha nem változott
             if (oldStatus == newStatus) return;
 
             ticket.Status = newStatus;
@@ -279,27 +301,26 @@ namespace Tickify.Services
 
             _ticketRepository.UpdateTicket(ticket);
 
-            // 🔄 Admin komment beszúrása
             var commentText = $"🔁 Status changed by admin ({adminName}): {oldStatus} → {newStatus}";
             await _ticketCommentService.AddCommentAsync(
                 ticket.Id,
                 commentText,
-                "admin-system", // vagy akár null is lehet
+                "admin-system",
                 adminName,
                 null
             );
 
-            await _ticketRepository.SaveChangesAsync();
+            await _dbContext.Notifications.AddAsync(new Notification
+            {
+                UserId = ticket.CreatedBy,
+                Message = $"📌 Your ticket \"{ticket.Title}\" status changed to \"{newStatus}\".",
+                TicketId = ticket.Id.ToString(),
+                CreatedAt = DateTime.UtcNow,
+                IsRead = false
+            });
+
+            await _dbContext.SaveChangesAsync();
         }
-
-
-
-
-
-
-
-
-
 
 
 
