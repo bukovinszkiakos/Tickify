@@ -1,89 +1,101 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { apiGet, apiPut, apiDelete, apiPost } from "../../../utils/api";
+import { useAuth } from "../../context/AuthContext";
+import "../../styles/TicketDetailPage.css";
 
 export default function TicketDetailPage() {
   const router = useRouter();
   const { id } = useParams();
+  const { user } = useAuth();
+
   const [ticket, setTicket] = useState(null);
+  const [originalImageUrl, setOriginalImageUrl] = useState(null); 
   const [error, setError] = useState("");
   const [editMode, setEditMode] = useState(false);
-
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("");
   const [status, setStatus] = useState("");
-
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [newImage, setNewImage] = useState(null);
-  const [previewImage, setPreviewImage] = useState(null); 
+  const [editImage, setEditImage] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [previewChanges, setPreviewChanges] = useState(null);
+  const [oldImageUrl, setOldImageUrl] = useState(null);
+  const [newImageUrl, setNewImageUrl] = useState(null);
+  const [textChanges, setTextChanges] = useState([]);
+
+  const commentsTopRef = useRef(null);
+
+  const fetchTicketData = async () => {
+    const res = await fetch(`/api/tickets/${id}`, { credentials: "include" });
+    const data = await res.json();
+    setTicket(data);
+    setTitle(data.title);
+    setDescription(data.description);
+    setPriority(data.priority);
+    setStatus(data.status);
+    setOriginalImageUrl(data.imageUrl); 
+  };
+
+  const fetchComments = async () => {
+    const res = await fetch(`/api/tickets/${id}/comments`, {
+      credentials: "include",
+    });
+    const data = await res.json();
+    setComments(data);
+  };
 
   useEffect(() => {
     if (!id) return;
-    apiGet(`/api/tickets/${id}`)
-      .then((data) => {
-        setTicket(data);
-        setTitle(data.title);
-        setDescription(data.description);
-        setPriority(data.priority);
-        setStatus(data.status);
-      })
-      .catch((err) => setError(err.message));
-
-    apiGet(`/api/tickets/${id}/comments`)
-      .then((data) => setComments(data))
-      .catch((err) => console.error("Error fetching comments:", err.message));
+    fetchTicketData();
+    fetchComments();
   }, [id]);
 
-  async function handleUpdate(e) {
+  const handleUpdate = async (e) => {
     e.preventDefault();
-    try {
-      await apiPut(`/api/tickets/${id}`, {
-        title,
-        description,
-        status,
-        priority,
-      });
-      router.push("/tickets");
-    } catch (err) {
-      setError(err.message);
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("description", description);
+    formData.append("priority", priority);
+    formData.append("status", status);
+    if (editImage) {
+      formData.append("image", editImage);
     }
-  }
-
-  async function handleDelete() {
-    try {
-      await apiDelete(`/api/tickets/${id}`);
-      router.push("/tickets");
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleDeleteImage() {
-    if (!window.confirm("Are you sure you want to delete this image?")) return;
 
     try {
-      const response = await fetch(`/api/tickets/${id}/image`, {
-        method: "DELETE",
+      const res = await fetch(`/api/tickets/${id}`, {
+        method: "PUT",
+        body: formData,
         credentials: "include",
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to delete image.");
-      }
+      if (!res.ok) throw new Error("Failed to update ticket");
 
-      setTicket((prev) => ({ ...prev, imageUrl: null })); 
+      setEditMode(false);
+      await fetchTicketData();
+      await fetchComments();
     } catch (err) {
-      console.error("Error deleting image:", err.message);
-      setError("Failed to delete image.");
+      setError(err.message);
     }
-  }
+  };
 
-  async function handleAddComment(e) {
+  const handleDelete = async () => {
+    try {
+      await fetch(`/api/tickets/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      router.push("/tickets");
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleAddComment = async (e) => {
     e.preventDefault();
-
     const formData = new FormData();
     formData.append("comment", newComment);
     if (newImage) {
@@ -97,186 +109,204 @@ export default function TicketDetailPage() {
         credentials: "include",
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to add comment");
-      }
+      if (!response.ok) throw new Error("Failed to add comment");
 
       setNewComment("");
       setNewImage(null);
+      await fetchComments();
 
-      const updatedComments = await apiGet(`/api/tickets/${id}/comments`);
-      setComments(updatedComments);
+      setTimeout(() => {
+        commentsTopRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
     } catch (err) {
-      console.error("Error adding comment:", err.message);
       setError("Failed to add comment. Please try again.");
     }
-  }
+  };
 
-  if (error) {
-    return <p style={{ color: "red" }}>{error}</p>;
-  }
-  if (!ticket) {
-    return <p>Loading ticket...</p>;
-  }
+  const handleSeeChanges = (commentText) => {
+    setPreviewChanges(commentText);
+  
+    const lines = commentText
+      .split("\n")
+      .filter(line =>
+        line.startsWith("Title:") ||
+        line.startsWith("Description:") ||
+        line.startsWith("Priority:") ||
+        line.startsWith("Assigned To:")
+      );
+    setTextChanges(lines);
+  
+    const oldMatch = commentText.match(/Old image: (https?:\/\/\S+)/);
+    const newMatch = commentText.match(/New image: (https?:\/\/\S+)/);
+  
+    if (commentText.includes("🖼️ Image updated.") && oldMatch && newMatch) {
+      setOldImageUrl(oldMatch[1]);
+      setNewImageUrl(newMatch[1]);
+    } else {
+      setOldImageUrl(null);
+      setNewImageUrl(null);
+    }
+  };
+  
+
+  if (error) return <p className="error-message">{error}</p>;
+  if (!ticket) return <p className="loading-message">Loading ticket...</p>;
 
   return (
-    <div style={{ padding: "1rem" }}>
-      <h1>Ticket Detail (ID: {id})</h1>
+    <div className="ticket-page-container">
+      <div className="ticket-detail-card">
+        <h1>Ticket Detail</h1>
+        <div className="ticket-info">
+          <div className="info-block">
+            <strong>Title:</strong>
+            {editMode ? (
+              <input
+                className="field-input"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            ) : (
+              <div className="scrollable-text">{ticket.title}</div>
+            )}
+          </div>
 
-      {ticket.imageUrl && (
-        <div style={{ position: "relative", textAlign: "center" }}>
-          <img
-            src={ticket.imageUrl}
-            alt="Ticket Attachment"
-            style={{ maxWidth: "200px", cursor: "pointer" }}
-            onClick={() => setPreviewImage(ticket.imageUrl)}
-          />
-          <button
-            onClick={handleDeleteImage}
-            style={{
-              position: "absolute",
-              top: "-10px",
-              right: "-10px",
-              background: "red",
-              color: "white",
-              border: "none",
-              borderRadius: "50%",
-              width: "25px",
-              height: "25px",
-              cursor: "pointer",
-            }}
-          >
-            ❌
+          <div className="info-block">
+            <strong>Description:</strong>
+            {editMode ? (
+              <textarea
+                className="field-input"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            ) : (
+              <div className="scrollable-text">{ticket.description}</div>
+            )}
+          </div>
+
+          <p><strong>Priority:</strong> {ticket.priority}</p>
+          <p><strong>Status:</strong> {ticket.status}</p>
+
+          {editMode && (
+            <div className="info-block">
+              <strong>Change Screenshot:</strong>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setEditImage(e.target.files[0])}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="action-buttons">
+          {!user?.isAdmin && (
+            <button className="edit-btn" onClick={() => setEditMode(!editMode)}>
+              {editMode ? "Cancel Edit" : "Edit Ticket"}
+            </button>
+          )}
+          <button className="delete-btn" onClick={handleDelete}>
+            Delete Ticket
           </button>
         </div>
-      )}
+
+        {editMode && !user?.isAdmin && (
+          <form className="edit-form" onSubmit={handleUpdate}>
+            <div className="action-buttons">
+              <button type="submit" className="save-btn">
+                Save Changes
+              </button>
+            </div>
+          </form>
+        )}
+
+        {ticket.imageUrl && !editMode && (
+          <div className="screenshot-section">
+            <button onClick={() => setPreviewImage(ticket.imageUrl)}>
+              Screenshot or attachment
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="ticket-comments-section">
+        <h2>Comments</h2>
+        <div className="comment-scroll">
+          <ul className="comment-list">
+            <div ref={commentsTopRef}></div>
+            {[...comments]
+              .reverse()
+              .filter(c => !c.comment.startsWith("Ticket created with image:"))
+              .map((c) => (
+                <li key={c.id} className="comment-item">
+                  <p>
+                    <strong>{c.commenter || "Unknown"}</strong>{" "}
+                    <em>({new Date(c.createdAt).toLocaleString()})</em>
+                  </p>
+                  {c.comment.startsWith("🔄 Ticket updated:") ? (
+                    <>
+                      <p className="change-preview">This ticket has been updated.</p>
+                      <button className="see-changes-btn" onClick={() => handleSeeChanges(c.comment)}>
+                        See Changes
+                      </button>
+                    </>
+                  ) : (
+                    <p>{c.comment}</p>
+                  )}
+                  {c.imageUrl && (
+                    <button onClick={() => setPreviewImage(c.imageUrl)}>Screenshot</button>
+                  )}
+                </li>
+              ))}
+          </ul>
+        </div>
+
+        <form onSubmit={handleAddComment} className="comment-form" encType="multipart/form-data">
+          <textarea
+            placeholder="Write a comment..."
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            required
+          />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setNewImage(e.target.files[0])}
+          />
+          <button type="submit">Submit Comment</button>
+        </form>
+      </div>
 
       {previewImage && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            background: "rgba(0,0,0,0.8)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-          onClick={() => setPreviewImage(null)}
-        >
-          <img
-            src={previewImage}
-            alt="Full size preview"
-            style={{ maxWidth: "90%", maxHeight: "90%", borderRadius: "10px" }}
-          />
+        <div className="preview-modal image-overlay" onClick={() => setPreviewImage(null)}>
+          <img src={previewImage} alt="Preview" className="preview-full" />
         </div>
       )}
 
-      <p>
-        <strong>Title:</strong> {ticket.title}
-      </p>
-      <p>
-        <strong>Description:</strong> {ticket.description}
-      </p>
-      <p>
-        <strong>Priority:</strong> {ticket.priority}
-      </p>
-      <p>
-        <strong>Status:</strong> {ticket.status}
-      </p>
+      {previewChanges && (
+        <div className="preview-modal" onClick={() => setPreviewChanges(null)}>
+          <div className="preview-content" onClick={(e) => e.stopPropagation()}>
+            <h3>📋 Ticket Changes</h3>
+            <p className="change-preview">📝 Changes made to the ticket.</p>
 
-      <button onClick={() => setEditMode(!editMode)}>
-        {editMode ? "Cancel Edit" : "Edit Ticket"}
-      </button>
-      <button
-        onClick={handleDelete}
-        style={{ marginLeft: "1rem", color: "red" }}
-      >
-        Delete Ticket
-      </button>
-      {editMode ? (
-        <form onSubmit={handleUpdate}>
-          <input
-            type="text"
-            placeholder="Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
-          <br />
-          <textarea
-            placeholder="Description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            required
-          />
-          <br />
-          <select
-            value={priority}
-            onChange={(e) => setPriority(e.target.value)}
-          >
-            <option>Low</option>
-            <option>Normal</option>
-            <option>High</option>
-          </select>
-          <br />
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option>Open</option>
-            <option>In Progress</option>
-            <option>Resolved</option>
-            <option>Closed</option>
-          </select>
-          <br />
-          <button type="submit">Save</button>
-        </form>
-      ) : null}
+            {textChanges.length > 0 && <pre>{textChanges.join("\n")}</pre>}
 
-      <hr />
-      <h2>Comments</h2>
-      {comments.length === 0 ? (
-        <p>No comments yet.</p>
-      ) : (
-        <ul>
-          {comments.map((c) => (
-            <li key={c.id}>
-              <strong>{c.commenter}</strong> (
-              {new Date(c.createdAt).toLocaleString()}):
-              <br />
-              {c.comment}
-              {c.imageUrl && (
-                <>
-                  <br />
-                  <img
-                    src={c.imageUrl}
-                    alt="Comment attachment"
-                    style={{ width: "100px", cursor: "pointer" }}
-                    onClick={() => setPreviewImage(c.imageUrl)}
-                  />
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
+            {oldImageUrl && (
+              <button className="image-button" onClick={() => setPreviewImage(oldImageUrl)}>
+                Old Image
+              </button>
+            )}
+            {newImageUrl && (
+              <button className="image-button" onClick={() => setPreviewImage(newImageUrl)}>
+                New Image
+              </button>
+            )}
+
+            <button className="close-btn" onClick={() => setPreviewChanges(null)}>
+              Close
+            </button>
+          </div>
+        </div>
       )}
-      <form onSubmit={handleAddComment} encType="multipart/form-data">
-        <textarea
-          placeholder="Add your comment..."
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          required
-        />
-        <br />
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => setNewImage(e.target.files[0])}
-        />
-        <br />
-        <button type="submit">Submit Comment</button>
-      </form>
     </div>
   );
 }
