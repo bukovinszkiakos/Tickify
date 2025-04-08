@@ -1,4 +1,5 @@
 "use client";
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPost } from "../../utils/api";
@@ -12,21 +13,24 @@ export function AuthProvider({ children }) {
   async function fetchUser() {
     try {
       const res = await apiGet("/Auth/Me");
-      console.log("Fetched user data:", res);
-  
-      if (res.roles && Array.isArray(res.roles)) {
-        res.isAdmin = res.roles.some(role => role.toLowerCase() === "admin");
-      } else {
-        res.isAdmin = false;  
+
+      if (!res || !res.email) {
+        setUser(null);
+        return null;
       }
-  
+
+      res.roles = res.roles || [];
+      res.isAdmin =
+        res.roles.includes("Admin") || res.roles.includes("SuperAdmin");
+      res.isSuperAdmin = res.roles.includes("SuperAdmin");
       setUser(res);
+      return res;
     } catch (err) {
-      console.error("Error fetching user:", err);
+      console.error("Unexpected error fetching user:", err);
       setUser(null);
+      return null;
     }
   }
-  
 
   useEffect(() => {
     fetchUser();
@@ -35,9 +39,9 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     try {
       await apiPost("/Auth/Login", { Email: email, Password: password });
-      const userData = await fetchUser(); 
-      if (userData?.isAdmin) {
-        router.push("/admin");
+      const userData = await fetchUser();
+      if (userData?.isSuperAdmin || userData?.isAdmin) {
+        router.push("/admin/tickets");
       } else {
         router.push("/tickets");
       }
@@ -49,10 +53,11 @@ export function AuthProvider({ children }) {
   async function logout() {
     try {
       await apiPost("/Auth/Logout", {});
+    } catch (err) {
+      console.warn("Logout API failed, possibly already logged out:", err);
+    } finally {
       setUser(null);
       router.push("/login");
-    } catch (err) {
-      console.error("Logout error:", err);
     }
   }
 
