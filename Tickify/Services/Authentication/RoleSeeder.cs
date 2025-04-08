@@ -17,6 +17,11 @@ namespace Tickify.Services.Authentication
 
         public async Task SeedRolesAndAdminAsync()
         {
+            if (!await _roleManager.RoleExistsAsync("SuperAdmin"))
+            {
+                await _roleManager.CreateAsync(new IdentityRole("SuperAdmin"));
+            }
+
             if (!await _roleManager.RoleExistsAsync("Admin"))
             {
                 await _roleManager.CreateAsync(new IdentityRole("Admin"));
@@ -26,6 +31,7 @@ namespace Tickify.Services.Authentication
             {
                 await _roleManager.CreateAsync(new IdentityRole("User"));
             }
+
 
             var adminEmail = "admin@admin.com";
             var adminUser = await _userManager.FindByEmailAsync(adminEmail);
@@ -45,6 +51,27 @@ namespace Tickify.Services.Authentication
                     await _userManager.AddToRoleAsync(newAdmin, "Admin");
                 }
             }
+
+            var superAdminEmail = "super@admin.com";
+            var superAdminUser = await _userManager.FindByEmailAsync(superAdminEmail);
+
+            if (superAdminUser == null)
+            {
+                var newSuperAdmin = new IdentityUser
+                {
+                    UserName = "SuperAdmin",
+                    Email = superAdminEmail,
+                    EmailConfirmed = true
+                };
+
+                var result = await _userManager.CreateAsync(newSuperAdmin, "Super123!");
+
+                if (result.Succeeded)
+                {
+                    await _userManager.AddToRoleAsync(newSuperAdmin, "SuperAdmin");
+                }
+            }
+
         }
     }
 }
