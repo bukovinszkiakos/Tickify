@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using Tickify.DTOs;
 using Tickify.Services;
 using System.IO;
+using Microsoft.EntityFrameworkCore;
+using Tickify.Context;
 
 namespace Tickify.Controllers
 {
@@ -17,17 +19,42 @@ namespace Tickify.Controllers
     {
         private readonly ITicketCommentService _ticketCommentService;
         private readonly UserManager<IdentityUser> _userManager;
+        private readonly ApplicationDbContext _dbContext;
 
-        public TicketCommentsController(ITicketCommentService ticketCommentService, UserManager<IdentityUser> userManager)
+        public TicketCommentsController(
+     ITicketCommentService ticketCommentService,
+     UserManager<IdentityUser> userManager,
+     ApplicationDbContext dbContext) 
         {
             _ticketCommentService = ticketCommentService;
             _userManager = userManager;
+            _dbContext = dbContext; 
         }
 
         [HttpGet]
         public async Task<IActionResult> GetComments(int ticketId)
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
             var comments = await _ticketCommentService.GetCommentsByTicketIdAsync(ticketId);
+
+            var newStatuses = comments
+                .Where(c => !_dbContext.CommentReadStatuses
+                    .Any(r => r.UserId == userId && r.CommentId == c.Id))
+                .Select(c => new CommentReadStatus
+                {
+                    UserId = userId!,
+                    CommentId = c.Id,
+                    SeenAt = DateTime.UtcNow
+                })
+                .ToList();
+
+            if (newStatuses.Any())
+            {
+                _dbContext.CommentReadStatuses.AddRange(newStatuses);
+                await _dbContext.SaveChangesAsync();
+            }
 
             var result = comments.Select(c => new {
                 c.Id,
@@ -39,6 +66,10 @@ namespace Tickify.Controllers
 
             return Ok(result);
         }
+
+
+
+
 
         [HttpPost]
         public async Task<IActionResult> AddComment(int ticketId, [FromForm] string comment, [FromForm] IFormFile? image)
