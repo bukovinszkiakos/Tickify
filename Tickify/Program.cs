@@ -17,6 +17,8 @@ ConfigureSwagger();
 AddDbContexts();
 AddAuthentication();
 AddIdentity();
+builder.Services.AddHttpContextAccessor();
+
 
 var app = builder.Build();
 
