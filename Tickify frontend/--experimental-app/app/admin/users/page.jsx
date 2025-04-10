@@ -6,28 +6,33 @@ import { useAuth } from "../../context/AuthContext";
 import "../../styles/AdminUsersPage.css";
 
 export default function AdminUsersPage() {
+  const { user } = useAuth();
+
   const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
   const [roleToAssign, setRoleToAssign] = useState("Admin");
   const [userIdForRole, setUserIdForRole] = useState("");
-
-  const { user } = useAuth();
-  const isSuperAdmin = user?.roles?.includes("SuperAdmin");
-  const isAdmin = user?.roles?.includes("Admin");
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    apiGet("/api/admin/users")
-      .then((data) => setUsers(data))
-      .catch((err) => setError(err.message));
+    if (user?.roles) {
+      setIsSuperAdmin(user.roles.includes("SuperAdmin"));
+      setIsAdmin(user.roles.includes("Admin"));
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchUsers();
   }, []);
 
-  if (!user) {
-    return (
-      <div className="admin-users-container">
-        <h1>Manage Users</h1>
-        <p>Loading user...</p>
-      </div>
-    );
+  async function fetchUsers() {
+    try {
+      const data = await apiGet("/api/admin/users");
+      setUsers(data);
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   function canDelete(targetUser) {
@@ -58,20 +63,6 @@ export default function AdminUsersPage() {
     }
   }
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-  
-  async function fetchUsers() {
-    try {
-      const data = await apiGet("/api/admin/users");
-      setUsers(data);
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-
   async function handleAssignRole(e) {
     e.preventDefault();
 
@@ -87,6 +78,15 @@ export default function AdminUsersPage() {
     } catch (err) {
       setError(err.message);
     }
+  }
+
+  if (!user) {
+    return (
+      <div className="admin-users-container">
+        <h1>Manage Users</h1>
+        <p>Loading user...</p>
+      </div>
+    );
   }
 
   return (
@@ -125,8 +125,8 @@ export default function AdminUsersPage() {
             >
               <option value="">Select a user...</option>
               {users
-                .filter((u) => u.email !== user.email) 
-                .filter((u) => !u.roles?.includes("SuperAdmin")) 
+                .filter((u) => u.email !== user.email)
+                .filter((u) => !u.roles?.includes("SuperAdmin"))
                 .map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.userName} – {u.email}
