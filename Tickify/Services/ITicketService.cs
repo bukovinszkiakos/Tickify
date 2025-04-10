@@ -26,5 +26,9 @@ namespace Tickify.Services
 
         Task UpdateTicketStatusAsync(int ticketId, string newStatus, string changedByName);
 
+        Task<IEnumerable<TicketDto>> GetTicketsForAdminAsync(string adminUserId);
+
+        Task MarkTicketCommentsAsReadAsync(int ticketId, string userId);
+
     }
 }
