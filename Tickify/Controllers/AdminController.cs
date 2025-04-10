@@ -87,7 +87,8 @@ namespace Tickify.Controllers
         [HttpGet("tickets")]
         public async Task<IActionResult> GetAllTickets([FromQuery] string status = "", [FromQuery] string priority = "")
         {
-            var tickets = await _ticketService.GetTicketsForUserAsync(null, true);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var tickets = await _ticketService.GetTicketsForAdminAsync(userId); 
 
             if (!string.IsNullOrEmpty(status))
                 tickets = tickets.Where(t => t.Status == status);
@@ -97,6 +98,7 @@ namespace Tickify.Controllers
 
             return Ok(tickets);
         }
+
         [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpPut("tickets/{id}/status/{newStatus}")]
         public async Task<IActionResult> UpdateTicketStatus(int id, string newStatus)
@@ -141,5 +143,18 @@ namespace Tickify.Controllers
                 totalTickets = tickets.Count()
             });
         }
+
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        [HttpPost("tickets/{ticketId}/mark-comments-read")]
+        public async Task<IActionResult> MarkCommentsAsRead(int ticketId)
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            await _ticketService.MarkTicketCommentsAsReadAsync(ticketId, userId);
+            return Ok(new { message = "Comments marked as read." });
+        }
+
     }
 }
