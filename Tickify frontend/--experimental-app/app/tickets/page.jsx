@@ -3,12 +3,12 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { apiGet } from "../../utils/api";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; 
+import { useRouter } from "next/navigation";
 import "../styles/TicketsPage.css";
 
 export default function TicketsPage() {
   const { user } = useAuth();
-  const router = useRouter(); 
+  const router = useRouter();
   const [tickets, setTickets] = useState([]);
   const [error, setError] = useState("");
 
@@ -46,13 +46,34 @@ export default function TicketsPage() {
             >
               {ticket.title}
             </Link>
-            <span className={`status-pill status-${ticket.status.toLowerCase().replace(' ', '-')}`}>
-              {getStatusIcon(ticket.status)} {ticket.status}
-            </span>
+
+            <div className="ticket-right-info">
+              <span
+                className={`status-pill status-${ticket.status
+                  .toLowerCase()
+                  .replace(" ", "-")}`}
+              >
+                {getStatusIcon(ticket.status)} {ticket.status}
+              </span>
+
+              <span className="comment-stats">
+                💬 {ticket.totalCommentCount} comment
+                {ticket.totalCommentCount !== 1 && "s"}
+                {ticket.unreadCommentCount > 0 && (
+                  <span className="unread-badge">
+                    {" "}
+                    ({ticket.unreadCommentCount} new)
+                  </span>
+                )}
+              </span>
+            </div>
           </li>
         ))}
       </ul>
-      <Link href="/tickets/create" className="create-ticket-link new-ticket-button">
+      <Link
+        href="/tickets/create"
+        className="create-ticket-link new-ticket-button"
+      >
         + Create New Ticket
       </Link>
     </section>
@@ -61,10 +82,15 @@ export default function TicketsPage() {
 
 function getStatusIcon(status) {
   switch (status.toLowerCase()) {
-    case "open": return "🟦";
-    case "in progress": return "🟠";
-    case "resolved": return "✅";
-    case "closed": return "❌";
-    default: return "📄";
+    case "open":
+      return "🟦";
+    case "in progress":
+      return "🟠";
+    case "resolved":
+      return "✅";
+    case "closed":
+      return "❌";
+    default:
+      return "📄";
   }
 }
