@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { apiGet, apiPut } from "../../../utils/api";
 import "../../styles/AdminTicketsPage.css";
 
@@ -11,6 +12,7 @@ export default function AdminTicketsPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterPriority, setFilterPriority] = useState("");
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   useEffect(() => {
     const statusFromUrl = searchParams.get("status");
@@ -26,6 +28,19 @@ export default function AdminTicketsPage() {
     fetchTickets();
   }, []);
 
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchTickets();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
+
   async function fetchTickets() {
     try {
       const data = await apiGet("/api/admin/tickets");
@@ -39,9 +54,7 @@ export default function AdminTicketsPage() {
     try {
       await apiPut(`/api/admin/tickets/${ticketId}/status/${newStatus}`, {});
       setTickets((prev) =>
-        prev.map((t) =>
-          t.id === ticketId ? { ...t, status: newStatus } : t
-        )
+        prev.map((t) => (t.id === ticketId ? { ...t, status: newStatus } : t))
       );
     } catch (err) {
       setError(err.message);
@@ -96,6 +109,17 @@ export default function AdminTicketsPage() {
 
             <div className="status-info">
               {ticket.status} / {ticket.priority}
+            </div>
+
+            <div className="comment-stats">
+              💬 {ticket.totalCommentCount} comment
+              {ticket.totalCommentCount !== 1 && "s"}
+              {ticket.unreadCommentCount > 0 && (
+                <span className="unread-badge">
+                  {" "}
+                  ({ticket.unreadCommentCount} new)
+                </span>
+              )}
             </div>
 
             <div className="status-buttons">
