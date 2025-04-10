@@ -65,17 +65,22 @@ namespace Tickify.Services
                 .ToListAsync();
 
 
+            var commenterId = (userId ?? "").Trim();
             var relatedAdmins = previousCommenters
                 .Concat(statusChangers)
                 .Distinct()
-                .Where(adminId => adminId != ticket.CreatedBy)
+                .Where(adminId =>
+                    adminId != ticket.CreatedBy &&
+                    !string.Equals(adminId?.Trim(), commenterId, StringComparison.OrdinalIgnoreCase)) 
                 .ToList();
+
 
             foreach (var adminId in relatedAdmins)
             {
                 notifications.Add(new Notification
                 {
                     UserId = adminId,
+                    CreatedBy = userId, 
                     Message = $"💬 {username} commented on ticket \"{ticket.Title}\"",
                     TicketId = ticket.Id.ToString(),
                     CreatedAt = DateTime.UtcNow,
@@ -83,17 +88,23 @@ namespace Tickify.Services
                 });
             }
 
-            if (ticket.CreatedBy != userId)
+            var creatorId = (ticket.CreatedBy ?? "").Trim();
+
+            if (!string.IsNullOrEmpty(creatorId) &&
+                !string.IsNullOrEmpty(commenterId) &&
+                !string.Equals(creatorId, commenterId, StringComparison.OrdinalIgnoreCase))
             {
                 notifications.Add(new Notification
                 {
-                    UserId = ticket.CreatedBy,
+                    UserId = creatorId,
+                    CreatedBy = commenterId,
                     Message = $"💬 {username} commented on your ticket \"{ticket.Title}\"",
                     TicketId = ticket.Id.ToString(),
                     CreatedAt = DateTime.UtcNow,
                     IsRead = false
                 });
             }
+
 
             if (notifications.Any())
             {
