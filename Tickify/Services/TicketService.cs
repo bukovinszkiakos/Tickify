@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Tickify.Context;
 using Tickify.DTOs;
@@ -19,17 +20,20 @@ namespace Tickify.Services
         private readonly UserManager<IdentityUser> _userManager;
         private readonly ITicketCommentService _ticketCommentService;
         private readonly ApplicationDbContext _dbContext;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public TicketService(
-            ITicketRepository ticketRepository,
-            UserManager<IdentityUser> userManager,
-            ITicketCommentService ticketCommentService,
-            ApplicationDbContext dbContext)
+     ITicketRepository ticketRepository,
+     UserManager<IdentityUser> userManager,
+     ITicketCommentService ticketCommentService,
+     ApplicationDbContext dbContext,
+     IHttpContextAccessor httpContextAccessor)
         {
             _ticketRepository = ticketRepository;
             _userManager = userManager;
             _ticketCommentService = ticketCommentService;
             _dbContext = dbContext;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<IEnumerable<TicketDto>> GetTicketsForUserAsync(string userId, bool isAdmin)
@@ -45,9 +49,31 @@ namespace Tickify.Services
                 })
                 .ToListAsync();
 
+            var relevantTicketIds = isAdmin
+    ? tickets
+        .Where(t =>
+            t.AssignedTo == userId ||  
+            _dbContext.TicketComments.Any(c => c.TicketId == t.Id && c.CommentedBy == userId) || 
+            _dbContext.TicketHistories.Any(h => h.TicketId == t.Id && h.ChangedBy.ToString() == userId)) 
+        .Select(t => t.Id)
+        .ToList()
+    : tickets
+        .Where(t => t.CreatedBy == userId)
+        .Select(t => t.Id)
+        .ToList();
+
+
+
+
+
+
+            var userIdString = (userId ?? "").Trim();
+
             var unreadCounts = await _dbContext.TicketComments
+                .Where(c => relevantTicketIds.Contains(c.TicketId))
+                .Where(c => c.CommentedBy.Trim() != userIdString) 
                 .Where(c => !_dbContext.CommentReadStatuses
-                    .Any(r => r.CommentId == c.Id && r.UserId == userId))
+                    .Any(r => r.CommentId == c.Id && r.UserId == userIdString))
                 .GroupBy(c => c.TicketId)
                 .Select(g => new
                 {
@@ -55,6 +81,8 @@ namespace Tickify.Services
                     Unread = g.Count()
                 })
                 .ToListAsync();
+
+
 
             var ticketDtos = tickets.Select(t => new TicketDto
             {
@@ -67,6 +95,7 @@ namespace Tickify.Services
                 Priority = t.Priority,
                 CreatedBy = t.CreatedBy,
                 AssignedTo = t.AssignedTo,
+                ImageUrl = t.ImageUrl,
 
                 TotalCommentCount = commentCounts.FirstOrDefault(c => c.TicketId == t.Id)?.Total ?? 0,
                 UnreadCommentCount = unreadCounts.FirstOrDefault(u => u.TicketId == t.Id)?.Unread ?? 0
@@ -79,6 +108,7 @@ namespace Tickify.Services
 
             return ticketDtos;
         }
+
 
 
         public async Task<TicketDto> GetTicketDtoByIdAsync(int id, string userId, bool isAdmin)
@@ -293,34 +323,46 @@ namespace Tickify.Services
                 throw new KeyNotFoundException("Ticket not found.");
 
             var oldStatus = ticket.Status;
-
             if (oldStatus == newStatus) return;
 
             ticket.Status = newStatus;
             ticket.UpdatedAt = DateTime.Now;
-
             _ticketRepository.UpdateTicket(ticket);
+
+            var adminId = (_httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "").Trim();
 
             var commentText = $"🔁 Status changed by admin ({adminName}): {oldStatus} → {newStatus}";
             await _ticketCommentService.AddCommentAsync(
                 ticket.Id,
                 commentText,
-                "admin-system",
+                adminId,        
                 adminName,
                 null
             );
 
-            await _dbContext.Notifications.AddAsync(new Notification
-            {
-                UserId = ticket.CreatedBy,
-                Message = $"📌 Your ticket \"{ticket.Title}\" status changed to \"{newStatus}\".",
-                TicketId = ticket.Id.ToString(),
-                CreatedAt = DateTime.UtcNow,
-                IsRead = false
-            });
+            var creatorId = (ticket.CreatedBy ?? "").Trim();
 
-            await _dbContext.SaveChangesAsync();
+            if (!string.IsNullOrWhiteSpace(creatorId) &&
+                !string.IsNullOrWhiteSpace(adminId) &&
+                !string.Equals(creatorId, adminId, StringComparison.OrdinalIgnoreCase))
+            {
+                await _dbContext.Notifications.AddAsync(new Notification
+                {
+                    UserId = creatorId,
+                    CreatedBy = adminId,
+                    Message = $"📌 Your ticket \"{ticket.Title}\" status changed to \"{newStatus}\".",
+                    TicketId = ticket.Id.ToString(),
+                    CreatedAt = DateTime.UtcNow,
+                    IsRead = false
+                });
+
+                await _dbContext.SaveChangesAsync();
+            }
         }
+
+
+
+
 
 
 
@@ -380,5 +422,79 @@ namespace Tickify.Services
                 return false;
             }
         }
+
+        public async Task<IEnumerable<TicketDto>> GetTicketsForAdminAsync(string adminUserId)
+        {
+            var tickets = await _ticketRepository.GetAllTicketsAsync();
+            var userIdString = adminUserId.Trim();
+
+            var allTicketIds = tickets.Select(t => t.Id).ToList();
+
+            var commentCounts = await _dbContext.TicketComments
+                .GroupBy(c => c.TicketId)
+                .Select(g => new {
+                    TicketId = g.Key,
+                    Total = g.Count()
+                }).ToListAsync();
+
+                    var unreadCounts = await _dbContext.TicketComments
+             .Where(c => allTicketIds.Contains(c.TicketId))
+             .Where(c => c.CommentedBy != userIdString && c.CommentedBy != "admin-system") 
+             .Where(c => !_dbContext.CommentReadStatuses
+                 .Any(r => r.CommentId == c.Id && r.UserId == userIdString))
+             .GroupBy(c => c.TicketId)
+             .Select(g => new {
+                 TicketId = g.Key,
+                 Unread = g.Count()
+             }).ToListAsync();
+
+
+            var ticketDtos = tickets.Select(t => new TicketDto
+            {
+                Id = t.Id,
+                Title = t.Title,
+                Description = t.Description,
+                CreatedAt = t.CreatedAt,
+                UpdatedAt = t.UpdatedAt,
+                Status = t.Status,
+                Priority = t.Priority,
+                CreatedBy = t.CreatedBy,
+                AssignedTo = t.AssignedTo,
+                ImageUrl = t.ImageUrl,
+                TotalCommentCount = commentCounts.FirstOrDefault(c => c.TicketId == t.Id)?.Total ?? 0,
+                UnreadCommentCount = unreadCounts.FirstOrDefault(u => u.TicketId == t.Id)?.Unread ?? 0
+            });
+
+            return ticketDtos;
+        }
+
+
+        public async Task MarkTicketCommentsAsReadAsync(int ticketId, string userId)
+        {
+            var userIdString = userId.Trim();
+
+            var unreadCommentIds = await _dbContext.TicketComments
+                .Where(c => c.TicketId == ticketId)
+                .Where(c => c.CommentedBy != userIdString)
+                .Where(c => !_dbContext.CommentReadStatuses
+                    .Any(r => r.CommentId == c.Id && r.UserId == userIdString))
+                .Select(c => c.Id)
+                .ToListAsync();
+
+            var newStatuses = unreadCommentIds.Select(id => new CommentReadStatus
+            {
+                CommentId = id,
+                UserId = userIdString,
+                SeenAt = DateTime.UtcNow
+            }).ToList();
+
+            if (newStatuses.Any())
+            {
+                _dbContext.CommentReadStatuses.AddRange(newStatuses);
+                await _dbContext.SaveChangesAsync();
+            }
+        }
+
+
     }
 }
