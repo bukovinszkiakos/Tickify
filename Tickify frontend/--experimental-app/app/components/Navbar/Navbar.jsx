@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "../../context/AuthContext";
 import { Player } from "@lottiefiles/react-lottie-player";
 import "../../styles/Navbar.css";
-import NotificationBell from "../NotificationBell/NotificationBell"; // 🔔
+import NotificationBell from "../NotificationBell/NotificationBell"; 
 
 export default function Navbar() {
   const { user, logout } = useAuth();
