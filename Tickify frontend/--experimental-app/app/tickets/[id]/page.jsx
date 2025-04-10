@@ -10,7 +10,7 @@ export default function TicketDetailPage() {
   const { user } = useAuth();
 
   const [ticket, setTicket] = useState(null);
-  const [originalImageUrl, setOriginalImageUrl] = useState(null); 
+  const [originalImageUrl, setOriginalImageUrl] = useState(null);
   const [error, setError] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [title, setTitle] = useState("");
@@ -37,7 +37,7 @@ export default function TicketDetailPage() {
     setDescription(data.description);
     setPriority(data.priority);
     setStatus(data.status);
-    setOriginalImageUrl(data.imageUrl); 
+    setOriginalImageUrl(data.imageUrl);
   };
 
   const fetchComments = async () => {
@@ -50,9 +50,18 @@ export default function TicketDetailPage() {
 
   useEffect(() => {
     if (!id) return;
+
     fetchTicketData();
     fetchComments();
-  }, [id]);
+
+    if (user?.isAdmin) {
+      fetch(`/api/admin/tickets/${id}/mark-comments-read`, {
+        method: "POST",
+        credentials: "include"
+      });
+    }
+
+  }, [id, user]);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -125,7 +134,7 @@ export default function TicketDetailPage() {
 
   const handleSeeChanges = (commentText) => {
     setPreviewChanges(commentText);
-  
+
     const lines = commentText
       .split("\n")
       .filter(line =>
@@ -135,10 +144,10 @@ export default function TicketDetailPage() {
         line.startsWith("Assigned To:")
       );
     setTextChanges(lines);
-  
+
     const oldMatch = commentText.match(/Old image: (https?:\/\/\S+)/);
     const newMatch = commentText.match(/New image: (https?:\/\/\S+)/);
-  
+
     if (commentText.includes("🖼️ Image updated.") && oldMatch && newMatch) {
       setOldImageUrl(oldMatch[1]);
       setNewImageUrl(newMatch[1]);
@@ -147,7 +156,6 @@ export default function TicketDetailPage() {
       setNewImageUrl(null);
     }
   };
-  
 
   if (error) return <p className="error-message">{error}</p>;
   if (!ticket) return <p className="loading-message">Loading ticket...</p>;
