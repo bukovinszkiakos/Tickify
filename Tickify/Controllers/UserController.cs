@@ -24,13 +24,14 @@ namespace Tickify.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             var notifications = await _dbContext.Notifications
-                .Where(n => n.UserId == userId)
+                .Where(n => n.UserId == userId && (n.CreatedBy == null || n.CreatedBy != userId)) 
                 .OrderByDescending(n => n.CreatedAt)
                 .Take(10)
                 .ToListAsync();
 
             return Ok(notifications);
         }
+
 
 
         [Authorize]
