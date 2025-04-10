@@ -13,8 +13,8 @@
         public string? AssignedTo { get; set; }
         public string? ImageUrl { get; set; }
 
-        public int UnreadCommentCount { get; set; }
         public int TotalCommentCount { get; set; }
-
+        public int UnreadCommentCount { get; set; } 
     }
+
 }
