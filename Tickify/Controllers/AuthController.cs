@@ -81,19 +81,28 @@ namespace Tickify.Controllers
             if (user?.Identity == null || !user.Identity.IsAuthenticated)
                 return Unauthorized();
 
+            var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var email = user.FindFirst(ClaimTypes.Email)?.Value;
             var username = user.FindFirst(ClaimTypes.Name)?.Value;
             var roles = user.FindAll(ClaimTypes.Role).Select(r => r.Value).ToList();
 
             var expClaim = user.FindFirst("exp")?.Value;
             long expirationUnix = 0;
-            if (!string.IsNullOrEmpty(expClaim)) 
+            if (!string.IsNullOrEmpty(expClaim))
             {
                 long.TryParse(expClaim, out expirationUnix);
             }
 
-            return Ok(new { email, username, roles, expirationUnix });
+            return Ok(new
+            {
+                id = userId,
+                email,
+                username,
+                roles,
+                expirationUnix
+            });
         }
+
 
 
     }
