@@ -30,5 +30,10 @@ namespace Tickify.Services
 
         Task MarkTicketCommentsAsReadAsync(int ticketId, string userId);
 
+        Task AssignTicketToAdminAsync(int ticketId, string adminUserId);
+
+        Task ReassignTicketAsync(int ticketId, string? newAdminId, string changedByAdminId);
+
+
     }
 }

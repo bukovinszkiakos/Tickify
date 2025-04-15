@@ -42,47 +42,46 @@ namespace Tickify.Services
 
             var commentCounts = await _dbContext.TicketComments
                 .GroupBy(c => c.TicketId)
-                .Select(g => new
-                {
+                .Select(g => new {
                     TicketId = g.Key,
                     Total = g.Count()
                 })
                 .ToListAsync();
 
             var relevantTicketIds = isAdmin
-    ? tickets
-        .Where(t =>
-            t.AssignedTo == userId ||  
-            _dbContext.TicketComments.Any(c => c.TicketId == t.Id && c.CommentedBy == userId) || 
-            _dbContext.TicketHistories.Any(h => h.TicketId == t.Id && h.ChangedBy.ToString() == userId)) 
-        .Select(t => t.Id)
-        .ToList()
-    : tickets
-        .Where(t => t.CreatedBy == userId)
-        .Select(t => t.Id)
-        .ToList();
-
-
-
-
-
+                ? tickets
+                    .Where(t => t.AssignedTo == userId ||
+                                _dbContext.TicketComments.Any(c => c.TicketId == t.Id && c.CommentedBy == userId) ||
+                                _dbContext.TicketHistories.Any(h => h.TicketId == t.Id && h.ChangedBy.ToString() == userId))
+                    .Select(t => t.Id)
+                    .ToList()
+                : tickets
+                    .Where(t => t.CreatedBy == userId)
+                    .Select(t => t.Id)
+                    .ToList();
 
             var userIdString = (userId ?? "").Trim();
 
             var unreadCounts = await _dbContext.TicketComments
                 .Where(c => relevantTicketIds.Contains(c.TicketId))
-                .Where(c => c.CommentedBy.Trim() != userIdString) 
+                .Where(c => c.CommentedBy.Trim() != userIdString)
                 .Where(c => !_dbContext.CommentReadStatuses
                     .Any(r => r.CommentId == c.Id && r.UserId == userIdString))
                 .GroupBy(c => c.TicketId)
-                .Select(g => new
-                {
+                .Select(g => new {
                     TicketId = g.Key,
                     Unread = g.Count()
                 })
                 .ToListAsync();
 
+            var assignedUserIds = tickets.Where(t => !string.IsNullOrEmpty(t.AssignedTo))
+                                          .Select(t => t.AssignedTo)
+                                          .Distinct()
+                                          .ToList();
 
+            var assignedUserMap = await _dbContext.Users
+                .Where(u => assignedUserIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u.UserName);
 
             var ticketDtos = tickets.Select(t => new TicketDto
             {
@@ -95,8 +94,9 @@ namespace Tickify.Services
                 Priority = t.Priority,
                 CreatedBy = t.CreatedBy,
                 AssignedTo = t.AssignedTo,
+                AssignedToName = t.AssignedTo != null && assignedUserMap.ContainsKey(t.AssignedTo)
+                    ? assignedUserMap[t.AssignedTo] : null,
                 ImageUrl = t.ImageUrl,
-
                 TotalCommentCount = commentCounts.FirstOrDefault(c => c.TicketId == t.Id)?.Total ?? 0,
                 UnreadCommentCount = unreadCounts.FirstOrDefault(u => u.TicketId == t.Id)?.Unread ?? 0
             });
@@ -135,8 +135,12 @@ namespace Tickify.Services
                 Priority = ticket.Priority,
                 CreatedBy = ticket.CreatedBy,
                 AssignedTo = ticket.AssignedTo,
+                AssignedToName = ticket.AssignedTo != null
+         ? (await _dbContext.Users.FindAsync(ticket.AssignedTo))?.UserName
+         : null,
                 ImageUrl = ticket.ImageUrl
             };
+
         }
 
         public async Task<TicketDto> CreateTicketAsync(
@@ -240,11 +244,6 @@ namespace Tickify.Services
             string? newImageUrl = null;
             bool imageChanged = false;
 
-            if (!string.IsNullOrEmpty(ticket.ImageUrl))
-            {
-                oldImageUrl = $"{scheme}://{host}{ticket.ImageUrl}";
-            }
-
             if (ticket.Title != updateDto.Title)
             {
                 changes.Add($"Title: \"{ticket.Title}\" → \"{updateDto.Title}\"");
@@ -263,7 +262,7 @@ namespace Tickify.Services
                 ticket.Priority = updateDto.Priority;
             }
 
-            if (ticket.AssignedTo != updateDto.AssignedTo)
+            if (isAdmin && ticket.AssignedTo != updateDto.AssignedTo)
             {
                 changes.Add($"Assigned To: {ticket.AssignedTo ?? "None"} → {updateDto.AssignedTo ?? "None"}");
                 ticket.AssignedTo = updateDto.AssignedTo;
@@ -282,11 +281,17 @@ namespace Tickify.Services
                     await image.CopyToAsync(stream);
                 }
 
+                if (!string.IsNullOrEmpty(ticket.ImageUrl))
+                {
+                    oldImageUrl = $"{scheme}://{host}{ticket.ImageUrl}";
+                }
+
                 ticket.ImageUrl = $"/uploads/{fileName}";
                 newImageUrl = $"{scheme}://{host}{ticket.ImageUrl}";
                 imageChanged = true;
 
                 changes.Add("🖼️ Image updated.");
+
             }
 
             ticket.UpdatedAt = DateTime.Now;
@@ -296,9 +301,18 @@ namespace Tickify.Services
             {
                 var commentText = "🔄 Ticket updated:\n" + string.Join("\n", changes);
 
-                if (imageChanged && oldImageUrl != null && newImageUrl != null)
+                if (imageChanged)
                 {
-                    commentText += $"\nOld image: {oldImageUrl}\nNew image: {newImageUrl}";
+                    if (!string.IsNullOrEmpty(newImageUrl))
+                    {
+                        if (!string.IsNullOrEmpty(oldImageUrl))
+                        {
+                            commentText += $"\nOld image: {oldImageUrl}";
+                        }
+
+                        commentText += $"\nNew image: {newImageUrl}";
+                    }
+
                 }
 
                 var user = await _userManager.FindByIdAsync(userId);
@@ -311,8 +325,11 @@ namespace Tickify.Services
                 );
             }
 
+
             await _ticketRepository.SaveChangesAsync();
         }
+
+
 
 
 
@@ -322,6 +339,14 @@ namespace Tickify.Services
             if (ticket == null)
                 throw new KeyNotFoundException("Ticket not found.");
 
+            var adminId = (_httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "").Trim();
+
+            if (!string.IsNullOrEmpty(ticket.AssignedTo) &&
+                !string.Equals(ticket.AssignedTo.Trim(), adminId, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new UnauthorizedAccessException("Only the assigned admin can update the ticket status.");
+            }
+
             var oldStatus = ticket.Status;
             if (oldStatus == newStatus) return;
 
@@ -329,21 +354,17 @@ namespace Tickify.Services
             ticket.UpdatedAt = DateTime.Now;
             _ticketRepository.UpdateTicket(ticket);
 
-            var adminId = (_httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "").Trim();
-
             var commentText = $"🔁 Status changed by admin ({adminName}): {oldStatus} → {newStatus}";
             await _ticketCommentService.AddCommentAsync(
                 ticket.Id,
                 commentText,
-                adminId,        
+                adminId,
                 adminName,
                 null
             );
 
             var creatorId = (ticket.CreatedBy ?? "").Trim();
-
             if (!string.IsNullOrWhiteSpace(creatorId) &&
-                !string.IsNullOrWhiteSpace(adminId) &&
                 !string.Equals(creatorId, adminId, StringComparison.OrdinalIgnoreCase))
             {
                 await _dbContext.Notifications.AddAsync(new Notification
@@ -359,6 +380,7 @@ namespace Tickify.Services
                 await _dbContext.SaveChangesAsync();
             }
         }
+
 
 
 
@@ -437,17 +459,25 @@ namespace Tickify.Services
                     Total = g.Count()
                 }).ToListAsync();
 
-                    var unreadCounts = await _dbContext.TicketComments
-             .Where(c => allTicketIds.Contains(c.TicketId))
-             .Where(c => c.CommentedBy != userIdString && c.CommentedBy != "admin-system") 
-             .Where(c => !_dbContext.CommentReadStatuses
-                 .Any(r => r.CommentId == c.Id && r.UserId == userIdString))
-             .GroupBy(c => c.TicketId)
-             .Select(g => new {
-                 TicketId = g.Key,
-                 Unread = g.Count()
-             }).ToListAsync();
+            var unreadCounts = await _dbContext.TicketComments
+                .Where(c => allTicketIds.Contains(c.TicketId))
+                .Where(c => c.CommentedBy != userIdString && c.CommentedBy != "admin-system")
+                .Where(c => !_dbContext.CommentReadStatuses
+                    .Any(r => r.CommentId == c.Id && r.UserId == userIdString))
+                .GroupBy(c => c.TicketId)
+                .Select(g => new {
+                    TicketId = g.Key,
+                    Unread = g.Count()
+                }).ToListAsync();
 
+            var assignedUserIds = tickets.Where(t => !string.IsNullOrEmpty(t.AssignedTo))
+                                          .Select(t => t.AssignedTo)
+                                          .Distinct()
+                                          .ToList();
+
+            var assignedUserMap = await _dbContext.Users
+                .Where(u => assignedUserIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u.UserName);
 
             var ticketDtos = tickets.Select(t => new TicketDto
             {
@@ -460,6 +490,8 @@ namespace Tickify.Services
                 Priority = t.Priority,
                 CreatedBy = t.CreatedBy,
                 AssignedTo = t.AssignedTo,
+                AssignedToName = t.AssignedTo != null && assignedUserMap.ContainsKey(t.AssignedTo)
+                    ? assignedUserMap[t.AssignedTo] : null,
                 ImageUrl = t.ImageUrl,
                 TotalCommentCount = commentCounts.FirstOrDefault(c => c.TicketId == t.Id)?.Total ?? 0,
                 UnreadCommentCount = unreadCounts.FirstOrDefault(u => u.TicketId == t.Id)?.Unread ?? 0
@@ -467,6 +499,7 @@ namespace Tickify.Services
 
             return ticketDtos;
         }
+
 
 
         public async Task MarkTicketCommentsAsReadAsync(int ticketId, string userId)
@@ -494,6 +527,60 @@ namespace Tickify.Services
                 await _dbContext.SaveChangesAsync();
             }
         }
+
+
+        public async Task AssignTicketToAdminAsync(int ticketId, string adminUserId)
+        {
+            var ticket = await _ticketRepository.GetTicketByIdAsync(ticketId);
+            if (ticket == null)
+                throw new KeyNotFoundException("Ticket not found.");
+
+            ticket.AssignedTo = adminUserId;
+            ticket.UpdatedAt = DateTime.UtcNow;
+
+            _ticketRepository.UpdateTicket(ticket);
+            await _ticketRepository.SaveChangesAsync();
+        }
+
+        public async Task ReassignTicketAsync(int ticketId, string? newAdminId, string currentUserId)
+        {
+            var ticket = await _ticketRepository.GetTicketByIdAsync(ticketId);
+            if (ticket == null)
+            {
+                throw new KeyNotFoundException("Ticket not found.");
+            }
+
+            if (string.IsNullOrEmpty(ticket.AssignedTo))
+            {
+                ticket.AssignedTo = newAdminId;
+                ticket.UpdatedAt = DateTime.UtcNow;
+
+                _ticketRepository.UpdateTicket(ticket);
+                await _ticketRepository.SaveChangesAsync();
+                return;
+            }
+
+            var assignedToTrimmed = (ticket.AssignedTo ?? "").Trim();
+            var currentUserTrimmed = (currentUserId ?? "").Trim();
+
+            if (!string.Equals(assignedToTrimmed, currentUserTrimmed, StringComparison.OrdinalIgnoreCase) &&
+                !await _userManager.IsInRoleAsync(await _userManager.FindByIdAsync(currentUserId), "SuperAdmin"))
+            {
+                throw new UnauthorizedAccessException("Only the assigned admin or a SuperAdmin can reassign this ticket.");
+            }
+
+            ticket.AssignedTo = string.IsNullOrWhiteSpace(newAdminId) ? null : newAdminId;
+            ticket.UpdatedAt = DateTime.UtcNow;
+
+            _ticketRepository.UpdateTicket(ticket);
+            await _ticketRepository.SaveChangesAsync();
+        }
+
+
+
+
+
+
 
 
     }
