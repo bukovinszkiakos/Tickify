@@ -1,44 +1,30 @@
 "use client";
+
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useRouter } from "next/navigation";
-import { apiGet, apiPut } from "../../../utils/api";
+import { apiGet, apiPut, apiPost } from "../../../utils/api";
+import { useAuth } from "../../context/AuthContext";
 import "../../styles/AdminTicketsPage.css";
 
 export default function AdminTicketsPage() {
+  const { user } = useAuth();
   const [tickets, setTickets] = useState([]);
+  const [admins, setAdmins] = useState([]);
   const [error, setError] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterPriority, setFilterPriority] = useState("");
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   useEffect(() => {
     const statusFromUrl = searchParams.get("status");
-    if (statusFromUrl) {
-      setFilterStatus(statusFromUrl);
-    }
+    if (statusFromUrl) setFilterStatus(statusFromUrl);
 
     const priorityFromUrl = searchParams.get("priority");
-    if (priorityFromUrl) {
-      setFilterPriority(priorityFromUrl);
-    }
+    if (priorityFromUrl) setFilterPriority(priorityFromUrl);
 
     fetchTickets();
-  }, []);
-
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        fetchTickets();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
+    fetchAdmins();
   }, []);
 
   async function fetchTickets() {
@@ -50,12 +36,40 @@ export default function AdminTicketsPage() {
     }
   }
 
+  async function fetchAdmins() {
+    try {
+      const data = await apiGet("/api/admin/users");
+      const filtered = data.filter((u) => u.roles.includes("Admin"));
+      setAdmins(filtered);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleReassign(ticketId, newAdminId) {
+    try {
+      if (newAdminId === "null") newAdminId = null;
+      await apiPost(`/api/admin/tickets/${ticketId}/reassign`, { newAdminId });
+      await fetchTickets();
+    } catch (err) {
+      setError("Failed to reassign ticket.");
+    }
+  }
+
+  async function handleAssignToMe(ticketId) {
+    try {
+      await apiPost(`/api/admin/tickets/${ticketId}/assign-to-me`, {});
+      await fetchTickets();
+    } catch (err) {
+      setError("Failed to assign ticket.");
+    }
+  }
+
   async function handleUpdateStatus(ticketId, newStatus) {
     try {
       await apiPut(`/api/admin/tickets/${ticketId}/status/${newStatus}`, {});
-      setTickets((prev) =>
-        prev.map((t) => (t.id === ticketId ? { ...t, status: newStatus } : t))
-      );
+
+      await fetchTickets();
     } catch (err) {
       setError(err.message);
     }
@@ -101,55 +115,104 @@ export default function AdminTicketsPage() {
       {error && <p className="error-message">{error}</p>}
 
       <ul className="ticket-list">
-        {filteredTickets.map((ticket) => (
-          <li key={ticket.id} className="ticket-item">
-            <Link href={`/tickets/${ticket.id}`}>
-              <strong>{ticket.title}</strong>
-            </Link>
+        {filteredTickets.map((ticket) => {
+          const isAssignedToMe =
+            (ticket.assignedTo ?? "").trim() === (user?.id ?? "").trim();
+          const isUnassigned = !ticket.assignedTo;
 
-            <div className="status-info">
-              {ticket.status} / {ticket.priority}
-            </div>
+          return (
+            <li key={ticket.id} className="ticket-item">
+              <Link href={`/tickets/${ticket.id}`}>
+                <strong>{ticket.title}</strong>
+              </Link>
 
-            <div className="comment-stats">
-              💬 {ticket.totalCommentCount} comment
-              {ticket.totalCommentCount !== 1 && "s"}
-              {ticket.unreadCommentCount > 0 && (
-                <span className="unread-badge">
-                  {" "}
-                  ({ticket.unreadCommentCount} new)
-                </span>
-              )}
-            </div>
+              <div className="status-info">
+                {ticket.status} / {ticket.priority}
+              </div>
 
-            <div className="status-buttons">
-              <button
-                className="status-open"
-                onClick={() => handleUpdateStatus(ticket.id, "Open")}
-              >
-                Open
-              </button>
-              <button
-                className="status-inprogress"
-                onClick={() => handleUpdateStatus(ticket.id, "In Progress")}
-              >
-                In Progress
-              </button>
-              <button
-                className="status-resolved"
-                onClick={() => handleUpdateStatus(ticket.id, "Resolved")}
-              >
-                Resolved
-              </button>
-              <button
-                className="status-closed"
-                onClick={() => handleUpdateStatus(ticket.id, "Closed")}
-              >
-                Closed
-              </button>
-            </div>
-          </li>
-        ))}
+              <div className="assigned-info">
+                {ticket.assignedTo ? (
+                  <span className="assigned-badge">
+                    Assigned to {ticket.assignedToName || "Admin"}
+                  </span>
+                ) : (
+                  <span className="unassigned-badge">Unassigned</span>
+                )}
+              </div>
+
+              <div className="comment-stats">
+                💬 {ticket.totalCommentCount} comment
+                {ticket.totalCommentCount !== 1 && "s"}
+                {ticket.unreadCommentCount > 0 && (
+                  <span className="unread-badge">
+                    ({ticket.unreadCommentCount} new)
+                  </span>
+                )}
+              </div>
+
+              <div className="status-buttons">
+                {isUnassigned ? (
+                  <button
+                    className="assign-button"
+                    onClick={() => handleAssignToMe(ticket.id)}
+                  >
+                    Assign to Me
+                  </button>
+                ) : isAssignedToMe ? (
+                  <>
+                    <div className="status-controls">
+                      <button
+                        className="status-open"
+                        onClick={() => handleUpdateStatus(ticket.id, "Open")}
+                      >
+                        Open
+                      </button>
+                      <button
+                        className="status-inprogress"
+                        onClick={() =>
+                          handleUpdateStatus(ticket.id, "In Progress")
+                        }
+                      >
+                        In Progress
+                      </button>
+                      <button
+                        className="status-resolved"
+                        onClick={() =>
+                          handleUpdateStatus(ticket.id, "Resolved")
+                        }
+                      >
+                        Resolved
+                      </button>
+                      <button
+                        className="status-closed"
+                        onClick={() => handleUpdateStatus(ticket.id, "Closed")}
+                      >
+                        Closed
+                      </button>
+                    </div>
+
+                    <select
+                      onChange={(e) =>
+                        handleReassign(ticket.id, e.target.value)
+                      }
+                      defaultValue=""
+                    >
+                      <option value="">Reassign to...</option>
+                      {admins
+                        .filter((admin) => admin.id !== ticket.assignedTo) // 👈 Ez itt a lényeg
+                        .map((admin) => (
+                          <option key={admin.id} value={admin.id}>
+                            {admin.userName || admin.email}
+                          </option>
+                        ))}
+                      <option value="null">Unassign</option>
+                    </select>
+                  </>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
