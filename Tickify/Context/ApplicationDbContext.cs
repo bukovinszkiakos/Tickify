@@ -28,17 +28,17 @@ namespace Tickify.Context
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<Ticket>()
-                 .HasOne(t => t.Assignee)
-                 .WithMany()
-                 .HasForeignKey(t => t.AssignedTo)
-                 .OnDelete(DeleteBehavior.Restrict); 
+                .HasOne(t => t.Assignee)
+                .WithMany()
+                .HasForeignKey(t => t.AssignedTo)
+                .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Ticket>()
                 .HasOne(t => t.Creator)
                 .WithMany()
                 .HasForeignKey(t => t.CreatedBy)
-                .OnDelete(DeleteBehavior.Cascade);
-
+                .OnDelete(DeleteBehavior.NoAction);  
         }
+
     }
 }
