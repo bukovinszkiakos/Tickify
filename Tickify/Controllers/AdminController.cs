@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Tickify.Services;
 using Tickify.DTOs;
 using Microsoft.Extensions.Hosting;
+using System.Security.Claims;
 
 namespace Tickify.Controllers
 {
@@ -155,6 +156,63 @@ namespace Tickify.Controllers
             await _ticketService.MarkTicketCommentsAsReadAsync(ticketId, userId);
             return Ok(new { message = "Comments marked as read." });
         }
+
+
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        [HttpPost("tickets/{ticketId}/assign-to-me")]
+        public async Task<IActionResult> AssignToMe(int ticketId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            try
+            {
+                await _ticketService.AssignTicketToAdminAsync(ticketId, userId);
+                return Ok(new { message = "Ticket successfully assigned to you." });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        [HttpPost("tickets/{ticketId}/assign")]
+        public async Task<IActionResult> ReassignTicket(int ticketId, [FromBody] AssignTicketDto dto)
+        {
+            var adminId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(adminId)) return Unauthorized();
+
+            await _ticketService.AssignTicketToAdminAsync(ticketId, dto.AdminUserId);
+            return Ok(new { message = "Ticket reassigned successfully." });
+        }
+
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        [HttpPost("tickets/{ticketId}/reassign")]
+        public async Task<IActionResult> ReassignTicket(int ticketId, [FromBody] ReassignTicketDto dto)
+        {
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(currentUserId))
+                return Unauthorized();
+
+            try
+            {
+                await _ticketService.ReassignTicketAsync(ticketId, dto.NewAdminId, currentUserId);
+                return Ok(new { message = "Ticket reassigned successfully." });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = "Ticket not found.", error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal Server Error.", error = ex.Message });
+            }
+
+        }
+
+
+
 
     }
 }
