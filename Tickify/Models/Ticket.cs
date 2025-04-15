@@ -11,10 +11,10 @@ public class Ticket
     public string Status { get; set; } = "Open";
     public string Priority { get; set; } = "Normal";
 
-    public string CreatedBy { get; set; }
+    public string? CreatedBy { get; set; }
     public IdentityUser Creator { get; set; }
     public string? AssignedTo { get; set; }
-    public IdentityUser Assignee { get; set; }
+    public IdentityUser? Assignee { get; set; }
 
     public ICollection<TicketComment> Comments { get; set; }
     public ICollection<TicketHistory> Histories { get; set; }
