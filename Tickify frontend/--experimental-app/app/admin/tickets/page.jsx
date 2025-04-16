@@ -14,6 +14,7 @@ export default function AdminTicketsPage() {
   const [error, setError] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterPriority, setFilterPriority] = useState("");
+  const [onlyMine, setOnlyMine] = useState(false);
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -68,7 +69,6 @@ export default function AdminTicketsPage() {
   async function handleUpdateStatus(ticketId, newStatus) {
     try {
       await apiPut(`/api/admin/tickets/${ticketId}/status/${newStatus}`, {});
-
       await fetchTickets();
     } catch (err) {
       setError(err.message);
@@ -77,10 +77,12 @@ export default function AdminTicketsPage() {
 
   const filteredTickets = tickets
     .filter((t) => !filterStatus || t.status === filterStatus)
-    .filter((t) => !filterPriority || t.priority === filterPriority);
+    .filter((t) => !filterPriority || t.priority === filterPriority)
+    .filter((t) => !onlyMine || t.assignedTo === user?.id);
 
   return (
     <div className="admin-tickets-container">
+      <br></br>
       <h1>Manage Tickets</h1>
 
       <div className="filters">
@@ -110,6 +112,15 @@ export default function AdminTicketsPage() {
             <option>High</option>
           </select>
         </label>
+
+        <label className="mine-filter">
+          <input
+            type="checkbox"
+            checked={onlyMine}
+            onChange={(e) => setOnlyMine(e.target.checked)}
+          />
+          Show only tickets assigned to me
+        </label>
       </div>
 
       {error && <p className="error-message">{error}</p>}
@@ -122,12 +133,23 @@ export default function AdminTicketsPage() {
 
           return (
             <li key={ticket.id} className="ticket-item">
-              <Link href={`/tickets/${ticket.id}`}>
-                <strong>{ticket.title}</strong>
+              <Link
+                href={`/tickets/${ticket.id}`}
+                className="ticket-title"
+                title={ticket.title}
+              >
+                {ticket.title}
               </Link>
 
               <div className="status-info">
                 {ticket.status} / {ticket.priority}
+              </div>
+
+              <div className="created-info">
+                Created by:{" "}
+                <span className="creator-name">
+                  {ticket.createdByName || "Unknown"}
+                </span>
               </div>
 
               <div className="assigned-info">
@@ -199,7 +221,7 @@ export default function AdminTicketsPage() {
                     >
                       <option value="">Reassign to...</option>
                       {admins
-                        .filter((admin) => admin.id !== ticket.assignedTo) // 👈 Ez itt a lényeg
+                        .filter((admin) => admin.id !== ticket.assignedTo)
                         .map((admin) => (
                           <option key={admin.id} value={admin.id}>
                             {admin.userName || admin.email}
