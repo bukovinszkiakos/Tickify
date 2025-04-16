@@ -40,7 +40,9 @@ export default function AdminTicketsPage() {
   async function fetchAdmins() {
     try {
       const data = await apiGet("/api/admin/users");
-      const filtered = data.filter((u) => u.roles.includes("Admin"));
+      const filtered = data.filter(
+        (u) => u.roles.includes("Admin") || u.roles.includes("SuperAdmin")
+      );
       setAdmins(filtered);
     } catch (err) {
       setError(err.message);
@@ -133,13 +135,22 @@ export default function AdminTicketsPage() {
 
           return (
             <li key={ticket.id} className="ticket-item">
-              <Link
-                href={`/tickets/${ticket.id}`}
-                className="ticket-title"
-                title={ticket.title}
-              >
-                {ticket.title}
-              </Link>
+              <div className="ticket-title-container">
+                <Link
+                  href={`/tickets/${ticket.id}`}
+                  className="ticket-title"
+                  title={ticket.title}
+                >
+                  {ticket.title}
+                </Link>
+
+                {ticket.status === "Resolved" && (
+                  <span className="status-badge resolved">✅ Resolved</span>
+                )}
+                {ticket.status === "Closed" && (
+                  <span className="status-badge closed">❌ Closed</span>
+                )}
+              </div>
 
               <div className="status-info">
                 {ticket.status} / {ticket.priority}
@@ -173,7 +184,26 @@ export default function AdminTicketsPage() {
               </div>
 
               <div className="status-buttons">
-                {isUnassigned ? (
+              {user?.roles?.includes("SuperAdmin") ? (
+                  <>
+                    <select
+                      onChange={(e) =>
+                        handleReassign(ticket.id, e.target.value)
+                      }
+                      defaultValue=""
+                    >
+                      <option value="">Assign to...</option>
+                      {admins.map((admin) => (
+                        <option key={admin.id} value={admin.id}>
+                          {admin.userName || admin.email}
+                          {admin.id === user?.id ? " (me)" : ""}
+                        </option>
+                      ))}
+
+                      <option value="null">Unassign</option>
+                    </select>
+                  </>
+                ) : isUnassigned ? (
                   <button
                     className="assign-button"
                     onClick={() => handleAssignToMe(ticket.id)}
