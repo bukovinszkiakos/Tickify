@@ -15,16 +15,22 @@ export default function TicketsPage() {
 
   useEffect(() => {
     if (user === null) return;
-
+  
     if (user?.isAdmin || user?.isSuperAdmin) {
       router.push("/admin/tickets");
       return;
     }
-
+  
     apiGet("/api/tickets")
-      .then((data) => setTickets(data))
+      .then((data) => {
+        const sorted = data.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setTickets(sorted);
+      })
       .catch((err) => setError(err.message));
   }, [user, router]);
+  
 
   if (!user) {
     return <p className="error-message">Please login to see your tickets.</p>;
