@@ -81,7 +81,9 @@ export default function NotificationBell() {
                 >
                   {n.isTicketDeleted ? (
                     <div className="notification-disabled">
-                      <span className="message">{n.message}</span>
+                      <span className="message" title={n.message}>
+                        {n.message}
+                      </span>
                       <span className="notification-time">
                         {new Date(n.createdAt).toLocaleString()}
                       </span>
@@ -91,7 +93,9 @@ export default function NotificationBell() {
                       onClick={() => handleNotificationClick(n)}
                       className="notification-clickable"
                     >
-                      <span className="message">{n.message}</span>
+                      <span className="message" title={n.message}>
+                        {n.message}
+                      </span>
                       <span className="notification-time">
                         {new Date(n.createdAt).toLocaleString()}
                       </span>
