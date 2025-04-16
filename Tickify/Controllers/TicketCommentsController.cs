@@ -13,7 +13,7 @@ using Tickify.Context;
 namespace Tickify.Controllers
 {
     [ApiController]
-    [Authorize(Roles = "Admin,User")]
+    [Authorize(Roles = "Admin,SuperAdmin,User")]
     [Route("api/tickets/{ticketId}/comments")]
     public class TicketCommentsController : ControllerBase
     {
