@@ -6,26 +6,30 @@ import Link from "next/link";
 export default function HomePage() {
   const { user } = useAuth();
 
+  const isRegularUser =
+    user && !user.roles?.includes("Admin") && !user.roles?.includes("SuperAdmin");
+
   return (
     <div className="home-container">
       <div className="glass-card">
-        <h1> Welcome to Tickify!</h1>
+        <h1>Welcome to Tickify!</h1>
+
         <p>
-          Something not working? Need help with anything? Just create a ticket and we’ll take it from there.
-        </p>
-        <p>
-          Whether it’s a glitch, a broken tool, or a general request — send it in with a quick description or screenshot.
-        </p>
-        <p>
-          Our team is here to help and will keep you in the loop the whole time.
+          Have a question, issue, or request? Just open a ticket and our team will take it from there.
         </p>
 
-        {user ? (
+        <p>
+          Whether it’s a bug, feedback, a request for support, or anything else — we’ve got your back.
+        </p>
+
+        <p>
+          We’ll make sure to keep you informed as things move forward.
+        </p>
+
+        {isRegularUser && (
           <Link href="/tickets/create">
             <button className="cta-button">Create New Ticket</button>
           </Link>
-        ) : (
-          <p className="login-hint">🔐 Please log in to create a new ticket.</p>
         )}
       </div>
     </div>
