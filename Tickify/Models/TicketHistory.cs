@@ -7,7 +7,7 @@ namespace Tickify.Models
         public int Id { get; set; }
         public int TicketId { get; set; }
         public Ticket Ticket { get; set; }
-        public int ChangedBy { get; set; }
+        public string ChangedBy { get; set; }
         public IdentityUser ChangedByUser { get; set; }
         public string OldStatus { get; set; }
         public string NewStatus { get; set; }
