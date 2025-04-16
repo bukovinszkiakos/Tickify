@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using Tickify.Context;
+using Tickify.DTOs;
 
 namespace Tickify.Controllers
 {
@@ -21,16 +22,29 @@ namespace Tickify.Controllers
         [HttpGet("notifications")]
         public async Task<IActionResult> GetNotifications()
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var notifications = await _dbContext.Notifications
-                .Where(n => n.UserId == userId && (n.CreatedBy == null || n.CreatedBy != userId)) 
+                .Where(n => n.UserId == userId && (n.CreatedBy == null || n.CreatedBy != userId))
                 .OrderByDescending(n => n.CreatedAt)
                 .Take(10)
                 .ToListAsync();
 
-            return Ok(notifications);
+            var notificationDtos = notifications.Select(n => new NotificationDto
+            {
+                Id = n.Id,
+                UserId = n.UserId,
+                Message = n.Message,
+                TicketId = n.TicketId,
+                CreatedAt = n.CreatedAt,
+                IsRead = n.IsRead,
+                IsTicketDeleted = string.IsNullOrEmpty(n.TicketId)
+                    || !_dbContext.Tickets.Any(t => t.Id.ToString() == n.TicketId) 
+            });
+
+            return Ok(notificationDtos);
         }
+
 
 
 
@@ -65,6 +79,9 @@ namespace Tickify.Controllers
 
             return Ok(new { success = true });
         }
+
+
+
 
 
 
