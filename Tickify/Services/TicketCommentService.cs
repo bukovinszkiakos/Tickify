@@ -59,8 +59,8 @@ namespace Tickify.Services
             int.TryParse(userId, out int parsedUserId);
 
             var statusChangers = await _dbContext.TicketHistories
-                .Where(h => h.TicketId == ticketId && h.ChangedBy != parsedUserId)
-                .Select(h => h.ChangedBy.ToString()) 
+                .Where(h => h.TicketId == ticketId && h.ChangedBy != userId.Trim())
+                .Select(h => h.ChangedBy)
                 .Distinct()
                 .ToListAsync();
 
