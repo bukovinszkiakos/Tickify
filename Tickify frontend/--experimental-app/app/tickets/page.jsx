@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { apiGet } from "../../utils/api";
@@ -35,17 +36,21 @@ export default function TicketsPage() {
 
   return (
     <section className="tickets-container" aria-labelledby="my-tickets-heading">
-      <h1 id="my-tickets-heading">My Tickets</h1>
+      <br />
+      <h1 id="my-tickets-heading">🎟️ My Tickets</h1>
+
       <ul className="ticket-list-condensed">
         {tickets.map((ticket) => (
           <li key={ticket.id} className="ticket-row">
-            <Link
-              href={`/tickets/${ticket.id}`}
-              className="ticket-title-link"
-              title={ticket.title}
-            >
-              {ticket.title}
-            </Link>
+            <div className="ticket-left">
+              <Link
+                href={`/tickets/${ticket.id}`}
+                className="ticket-title-link"
+                title={ticket.title}
+              >
+                {ticket.title}
+              </Link>
+            </div>
 
             <div className="ticket-right-info">
               <span
@@ -70,9 +75,10 @@ export default function TicketsPage() {
           </li>
         ))}
       </ul>
+
       <Link
         href="/tickets/create"
-        className="create-ticket-link new-ticket-button"
+        className="create-ticket-button"
       >
         + Create New Ticket
       </Link>
