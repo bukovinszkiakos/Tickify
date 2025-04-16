@@ -8,9 +8,19 @@ export default function LoginPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    const savedEmail = localStorage.getItem("rememberedEmail");
+    const savedPassword = localStorage.getItem("rememberedPassword");
+
+    if (savedEmail && savedPassword) {
+      setEmail(savedEmail);
+      setPassword(savedPassword);
+      setRememberMe(true);
+    }
+
     const script = document.createElement("script");
     script.type = "module";
     script.src = "https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js";
@@ -23,6 +33,15 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
+
+      if (rememberMe) {
+        localStorage.setItem("rememberedEmail", email);
+        localStorage.setItem("rememberedPassword", password);
+      } else {
+        localStorage.removeItem("rememberedEmail");
+        localStorage.removeItem("rememberedPassword");
+      }
+
     } catch (err) {
       setError("Login failed. Check your credentials.");
     }
@@ -31,7 +50,7 @@ export default function LoginPage() {
   return (
     <div className="login-container">
       <div className="login-box">
-        <h2>Login</h2>
+        <h2>Login <ion-icon name="log-in-outline"></ion-icon></h2>
         {error && <p className="error-message">{error}</p>}
 
         <form onSubmit={handleSubmit}>
@@ -57,6 +76,16 @@ export default function LoginPage() {
               placeholder=" "
             />
             <label>Password</label>
+          </div>
+
+          <div className="remember-me">
+            <input
+              type="checkbox"
+              id="remember"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+            />
+            <label htmlFor="remember">Remember me</label>
           </div>
 
           <button type="submit" className="btn">Login</button>
