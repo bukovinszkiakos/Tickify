@@ -11,7 +11,7 @@ export default function NotificationBell() {
   const { notifications, loading, setNotifications } = useNotifications();
   const [open, setOpen] = useState(false);
   const router = useRouter();
-  const dropdownRef = useRef(null); 
+  const dropdownRef = useRef(null);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
@@ -75,14 +75,29 @@ export default function NotificationBell() {
               {notifications.map((n) => (
                 <li
                   key={n.id}
-                  className={`notification-item ${n.isRead ? "read" : "unread"}`}
+                  className={`notification-item ${
+                    n.isRead ? "read" : "unread"
+                  }`}
                 >
-                  <div onClick={() => handleNotificationClick(n)}>
-                    <span className="message">{n.message}</span>
-                    <span className="notification-time">
-                      {new Date(n.createdAt).toLocaleString()}
-                    </span>
-                  </div>
+                  {n.isTicketDeleted ? (
+                    <div className="notification-disabled">
+                      <span className="message">{n.message}</span>
+                      <span className="notification-time">
+                        {new Date(n.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => handleNotificationClick(n)}
+                      className="notification-clickable"
+                    >
+                      <span className="message">{n.message}</span>
+                      <span className="notification-time">
+                        {new Date(n.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+
                   <button
                     className="delete-notification"
                     onClick={() => handleDelete(n.id)}
