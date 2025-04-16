@@ -89,4 +89,12 @@
   cursor: pointer;
 }
 
+.message {
+  display: inline-block;
+  max-width: 200px;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+}
+
 

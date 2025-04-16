@@ -109,6 +109,7 @@
   margin: 8px 0;
   font-size: 0.95rem;
   color: #333;
+  white-space: pre-wrap;
 }
 
 .comment-form {

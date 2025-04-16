@@ -69,7 +69,7 @@
   font-size: 15px;
   font-weight: 600;
   color: #e3e6ec;
-  background: #2f3e51;
+  background: #0c11165d;
   border: 1px solid #43566f;
   border-radius: 10px;
   cursor: pointer;
@@ -81,7 +81,7 @@
 
 .nav-button:hover,
 .logout-button:hover {
-  background: #3b4c63;
+  background: #2e3c50;
   transform: translateY(-1px);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
