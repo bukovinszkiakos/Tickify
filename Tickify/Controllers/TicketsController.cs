@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace Tickify.Controllers
 {
     [ApiController]
-    [Authorize(Roles = "Admin,User")]
+    [Authorize(Roles = "Admin,User,SuperAdmin")]
     [Route("api/[controller]")]
     public class TicketsController : ControllerBase
     {
@@ -23,12 +23,17 @@ namespace Tickify.Controllers
             _userManager = userManager;
         }
 
+        private bool IsAdminOrSuperAdmin()
+        {
+            var roles = HttpContext.User.FindAll(ClaimTypes.Role).Select(r => r.Value).ToList();
+            return roles.Contains("Admin") || roles.Contains("SuperAdmin");
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetTickets()
         {
             var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var roles = HttpContext.User.FindAll(ClaimTypes.Role).Select(r => r.Value).ToList();
-            bool isAdmin = roles.Contains("Admin");
+            bool isAdmin = IsAdminOrSuperAdmin();
 
             var ticketDtos = await _ticketService.GetTicketsForUserAsync(userId, isAdmin);
             return Ok(ticketDtos);
@@ -38,8 +43,7 @@ namespace Tickify.Controllers
         public async Task<IActionResult> GetTicket(int id)
         {
             var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var roles = HttpContext.User.FindAll(ClaimTypes.Role).Select(r => r.Value).ToList();
-            bool isAdmin = roles.Contains("Admin");
+            bool isAdmin = IsAdminOrSuperAdmin();
 
             try
             {
@@ -62,19 +66,18 @@ namespace Tickify.Controllers
             }
         }
 
-
         [HttpPost]
         public async Task<IActionResult> CreateTicket(
-    [FromForm] string title,
-    [FromForm] string description,
-    [FromForm] string priority,
-    [FromForm] IFormFile? image)
+            [FromForm] string title,
+            [FromForm] string description,
+            [FromForm] string priority,
+            [FromForm] IFormFile? image)
         {
             var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (userId == null)
                 return Unauthorized("User ID not found in token.");
 
-            bool isAdmin = HttpContext.User.IsInRole("Admin");
+            bool isAdmin = IsAdminOrSuperAdmin();
 
             var scheme = Request.Scheme;
             var host = Request.Host.Value;
@@ -94,22 +97,17 @@ namespace Tickify.Controllers
             }
         }
 
-
-
-
-
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTicket(
-     int id,
-     [FromForm] UpdateTicketDto updateDto,
-     [FromForm] IFormFile? image)
+            int id,
+            [FromForm] UpdateTicketDto updateDto,
+            [FromForm] IFormFile? image)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
             var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var roles = HttpContext.User.FindAll(ClaimTypes.Role).Select(r => r.Value).ToList();
-            bool isAdmin = roles.Contains("Admin");
+            bool isAdmin = IsAdminOrSuperAdmin();
 
             var scheme = Request.Scheme;
             var host = Request.Host.Value;
@@ -129,13 +127,11 @@ namespace Tickify.Controllers
             }
         }
 
-
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTicket(int id)
         {
             var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var roles = HttpContext.User.FindAll(ClaimTypes.Role).Select(r => r.Value).ToList();
-            bool isAdmin = roles.Contains("Admin");
+            bool isAdmin = IsAdminOrSuperAdmin();
 
             try
             {
@@ -156,8 +152,7 @@ namespace Tickify.Controllers
         public async Task<IActionResult> DeleteTicketImage(int id)
         {
             var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var roles = HttpContext.User.FindAll(ClaimTypes.Role).Select(r => r.Value).ToList();
-            bool isAdmin = roles.Contains("Admin");
+            bool isAdmin = IsAdminOrSuperAdmin();
 
             try
             {
@@ -172,12 +167,10 @@ namespace Tickify.Controllers
             {
                 return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return BadRequest("Failed to delete image.");
             }
         }
-
-
     }
 }
