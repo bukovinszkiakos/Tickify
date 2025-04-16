@@ -88,8 +88,11 @@ namespace Tickify.Controllers
         [HttpGet("tickets")]
         public async Task<IActionResult> GetAllTickets([FromQuery] string status = "", [FromQuery] string priority = "")
         {
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            var tickets = await _ticketService.GetTicketsForAdminAsync(userId); 
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var user = await _userManager.FindByIdAsync(userId);
+            var isSuperAdmin = await _userManager.IsInRoleAsync(user, "SuperAdmin");
+
+            var tickets = await _ticketService.GetTicketsForAdminAsync(userId, isSuperAdmin);
 
             if (!string.IsNullOrEmpty(status))
                 tickets = tickets.Where(t => t.Status == status);
@@ -99,6 +102,7 @@ namespace Tickify.Controllers
 
             return Ok(tickets);
         }
+
 
         [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpPut("tickets/{id}/status/{newStatus}")]
