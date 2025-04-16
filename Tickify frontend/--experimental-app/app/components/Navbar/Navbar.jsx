@@ -4,11 +4,14 @@ import React from "react";
 import Link from "next/link";
 import { useAuth } from "../../context/AuthContext";
 import { Player } from "@lottiefiles/react-lottie-player";
+import NotificationBell from "../NotificationBell/NotificationBell";
 import "../../styles/Navbar.css";
-import NotificationBell from "../NotificationBell/NotificationBell"; 
 
 export default function Navbar() {
   const { user, logout } = useAuth();
+
+  const isAdmin = user?.roles?.includes("Admin");
+  const isSuperAdmin = user?.roles?.includes("SuperAdmin");
 
   async function handleLogout() {
     try {
@@ -18,13 +21,23 @@ export default function Navbar() {
     }
   }
 
-  const isAdmin = user?.roles?.includes("Admin");
-  const isSuperAdmin = user?.roles?.includes("SuperAdmin");
-
   return (
     <header className="heading">
       <nav className="navbar">
-        <div className="navbar-links">
+        <div className="navbar-left">
+          <div className="logo-container">
+            <img
+              src="/tickify-logo.png"
+              alt="Tickify Logo"
+              className="tickify-logo"
+              draggable={false}
+            />
+            <span className="logo-text">Tickify</span>
+          </div>
+          {user && <NotificationBell />}
+        </div>
+
+        <div className="navbar-right">
           <Link href="/" className="nav-link">
             <button className="nav-button">
               Home
@@ -37,56 +50,49 @@ export default function Navbar() {
             </button>
           </Link>
 
-          {user ? (
+          {user && !isAdmin && !isSuperAdmin && (
+            <Link href="/tickets" className="nav-link">
+              <button className="nav-button">
+                My Tickets
+                <Player
+                  src="/animations/tickets-animation.json"
+                  className="animation"
+                  autoplay
+                  loop
+                />
+              </button>
+            </Link>
+          )}
+
+          {user && (isAdmin || isSuperAdmin) && (
             <>
-             
-              {!isAdmin && !isSuperAdmin && (
-                <Link href="/tickets" className="nav-link">
-                  <button className="nav-button">
-                    My Tickets
-                    <Player
-                      src="/animations/tickets-animation.json"
-                      className="animation"
-                      autoplay
-                      loop
-                    />
-                  </button>
-                </Link>
-              )}
+              <Link href="/admin/tickets" className="nav-link">
+                <button className="nav-button">
+                  Manage
+                  <Player
+                    src="/animations/manage-animation.json"
+                    className="animation"
+                    autoplay
+                    loop
+                  />
+                </button>
+              </Link>
 
-              
-              {(isAdmin || isSuperAdmin) && (
-                <>
-                  <Link href="/admin/tickets" className="nav-link">
-                    <button className="nav-button">
-                      Manage
-                      <Player
-                        src="/animations/manage-animation.json"
-                        className="animation"
-                        autoplay
-                        loop
-                      />
-                    </button>
-                  </Link>
-
-                  <Link href="/admin" className="nav-link">
-                    <button className="nav-button">
-                      Admin
-                      <Player
-                        src="/animations/admin-animation.json"
-                        className="animation"
-                        autoplay
-                        loop
-                      />
-                    </button>
-                  </Link>
-                </>
-              )}
-
-              
-              <NotificationBell />
+              <Link href="/admin" className="nav-link">
+                <button className="nav-button">
+                  Admin
+                  <Player
+                    src="/animations/admin-animation.json"
+                    className="animation"
+                    autoplay
+                    loop
+                  />
+                </button>
+              </Link>
             </>
-          ) : (
+          )}
+
+          {!user && (
             <>
               <Link href="/login" className="nav-link">
                 <button className="nav-button">
@@ -113,19 +119,19 @@ export default function Navbar() {
               </Link>
             </>
           )}
-        </div>
 
-        {user && (
-          <button className="logout-button" onClick={handleLogout}>
-            Logout
-            <Player
-              src="/animations/logout-animation.json"
-              className="animation"
-              autoplay
-              loop
-            />
-          </button>
-        )}
+          {user && (
+            <button className="logout-button" onClick={handleLogout}>
+              Logout
+              <Player
+                src="/animations/logout-animation.json"
+                className="animation"
+                autoplay
+                loop
+              />
+            </button>
+          )}
+        </div>
       </nav>
     </header>
   );
