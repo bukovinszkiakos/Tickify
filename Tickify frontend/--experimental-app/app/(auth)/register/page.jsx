@@ -16,8 +16,7 @@ export default function RegisterPage() {
   useEffect(() => {
     const script = document.createElement("script");
     script.type = "module";
-    script.src =
-      "https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js";
+    script.src = "https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js";
     document.body.appendChild(script);
   }, []);
 
@@ -39,7 +38,9 @@ export default function RegisterPage() {
   return (
     <div className="register-container">
       <div className="register-box">
-        <h2>Register</h2>
+        <h2>
+        Register<ion-icon name="person-add-outline"></ion-icon> 
+        </h2>
         {error && <p className="error-message">{error}</p>}
 
         <form onSubmit={handleRegister}>
