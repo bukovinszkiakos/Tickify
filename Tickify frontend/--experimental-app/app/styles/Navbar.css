@@ -3,7 +3,7 @@
   top: 0;
   left: 0;
   width: 100%;
-  background: linear-gradient(to right, #1e2a3a, #283e52); 
+  background: linear-gradient(to right, #1e2a3a, #283e52);
   backdrop-filter: blur(10px);
   padding: 12px 0;
   z-index: 1000;
@@ -14,15 +14,46 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0 1.5rem;
 }
 
-.navbar-links {
+.navbar-left {
   display: flex;
-  gap: 16px;
   align-items: center;
+  gap: 18px;
+  margin-left: -40px;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.tickify-logo {
+  height: 50px;
+  width: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(255, 255, 255, 0.12);
+}
+
+.logo-text {
+  font-size: 22px;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 1px;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .nav-link {
@@ -64,13 +95,17 @@
 @media (max-width: 768px) {
   .navbar {
     flex-direction: column;
-    gap: 12px;
-    padding: 0.7rem;
+    gap: 10px;
+  }
+
+  .navbar-right {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .nav-button,
   .logout-button {
-    width: 90%;
+    width: 100%;
     font-size: 14px;
     padding: 10px;
     border-radius: 8px;
@@ -79,5 +114,13 @@
   .animation {
     width: 18px;
     height: 18px;
+  }
+
+  .logo-text {
+    font-size: 18px;
+  }
+
+  .tickify-logo {
+    height: 40px;
   }
 }

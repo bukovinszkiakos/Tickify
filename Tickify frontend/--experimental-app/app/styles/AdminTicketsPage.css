@@ -88,7 +88,14 @@
     color: #1e2a3a;
     font-weight: 600;
     font-size: 1.1rem;
+    white-space: nowrap;             
+    overflow: hidden;                
+    text-overflow: ellipsis;         
+    display: inline-block;
+    max-width: 100%;                 
+    cursor: pointer;
   }
+  
   
   .ticket-item a:hover {
     text-decoration: underline;
@@ -180,6 +187,12 @@
     background-color: #218838;
   }
   
-  
+  .mine-filter {
+    margin-top: 10px;
+    font-weight: 500;
+  }
+  .mine-filter input {
+    margin-right: 6px;
+  }
   
   

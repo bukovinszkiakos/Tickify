@@ -146,4 +146,28 @@
     font-size: 0.95rem;
     padding: 10px;
   }
+
+  
 }
+
+.register-box h2 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.input-box input:focus {
+  border-bottom: 2px solid #007bff;
+  box-shadow: 0 1px 0 #007bff;
+}
+
+.btn {
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+}
+
