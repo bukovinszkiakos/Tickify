@@ -113,6 +113,23 @@ export default function TicketDetailPage() {
     }
   };
 
+  const handleAdminStatusChange = async (e) => {
+    const newStatus = e.target.value;
+    setStatus(newStatus);
+
+    try {
+      const res = await fetch(`/api/admin/tickets/${id}/status/${newStatus}`, {
+        method: "PUT",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to update status");
+      await fetchTicketData();
+      await fetchComments();
+    } catch (err) {
+      setError("Failed to update status.");
+    }
+  };
+
   const handleAddComment = async (e) => {
     e.preventDefault();
     const formData = new FormData();
@@ -139,11 +156,13 @@ export default function TicketDetailPage() {
 
   const handleSeeChanges = (text) => {
     setPreviewChanges(text);
-    const lines = text.split("\n").filter((line) =>
-      ["Title:", "Description:", "Priority:", "Assigned To:"].some((prefix) =>
-        line.startsWith(prefix)
-      )
-    );
+    const lines = text
+      .split("\n")
+      .filter((line) =>
+        ["Title:", "Description:", "Priority:", "Assigned To:"].some((prefix) =>
+          line.startsWith(prefix)
+        )
+      );
     setTextChanges(lines);
     const oldMatch = text.match(/Old image: (https?:\/\/\S+)/);
     const newMatch = text.match(/New image: (https?:\/\/\S+)/);
@@ -152,8 +171,10 @@ export default function TicketDetailPage() {
   };
 
   const canDelete =
-    (!user?.isAdmin && user?.id === ticket?.createdBy) ||
-    (user?.isAdmin && user?.id === ticket?.assignedTo);
+  (!user?.isAdmin && user?.id === ticket?.createdBy) ||
+  (user?.isAdmin && user?.id === ticket?.assignedTo) ||
+  user?.roles?.includes("SuperAdmin");
+
 
   if (error) return <p className="error-message">{error}</p>;
   if (!ticket) return <p className="loading-message">Loading ticket...</p>;
@@ -163,14 +184,19 @@ export default function TicketDetailPage() {
       <div className="ticket-detail-card">
         <h1>🎫 Ticket Detail</h1>
         <div className="info-block">
-          <strong>👤 Created by:</strong> <span>{ticket.createdByName || "Unknown"}</span>
+          <strong>👤 Created by:</strong>{" "}
+          <span>{ticket.createdByName || "Unknown"}</span>
         </div>
 
         <div className="ticket-info">
           <div className="info-block">
             <strong>📝 Title:</strong>
             {editMode ? (
-              <input className="field-input" value={title} onChange={(e) => setTitle(e.target.value)} />
+              <input
+                className="field-input"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
             ) : (
               <div className="scrollable-text">{ticket.title}</div>
             )}
@@ -179,7 +205,11 @@ export default function TicketDetailPage() {
           <div className="info-block">
             <strong>📄 Description:</strong>
             {editMode ? (
-              <textarea className="field-input" value={description} onChange={(e) => setDescription(e.target.value)} />
+              <textarea
+                className="field-input"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
             ) : (
               <div className="scrollable-text">{ticket.description}</div>
             )}
@@ -188,7 +218,11 @@ export default function TicketDetailPage() {
           <div className="info-block">
             <strong>🚦 Priority:</strong>
             {editMode ? (
-              <select className="field-input" value={priority} onChange={(e) => setPriority(e.target.value)}>
+              <select
+                className="field-input"
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+              >
                 <option>Low</option>
                 <option>Normal</option>
                 <option>High</option>
@@ -201,7 +235,11 @@ export default function TicketDetailPage() {
           <div className="info-block">
             <strong>📌 Status:</strong>
             {user?.isAdmin && user.id === ticket.assignedTo ? (
-              <select className="field-input" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <select
+                className="field-input"
+                value={status}
+                onChange={handleAdminStatusChange}
+              >
                 <option>Open</option>
                 <option>In Progress</option>
                 <option>Resolved</option>
@@ -214,8 +252,14 @@ export default function TicketDetailPage() {
 
           {editMode && (
             <div className="info-block">
-              <strong><FileImage size={14} /> Change Screenshot:</strong>
-              <input type="file" accept="image/*" onChange={(e) => setEditImage(e.target.files[0])} />
+              <strong>
+                <FileImage size={14} /> Change Screenshot:
+              </strong>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setEditImage(e.target.files[0])}
+              />
             </div>
           )}
         </div>
@@ -223,7 +267,15 @@ export default function TicketDetailPage() {
         <div className="action-buttons">
           {!user?.isAdmin && (
             <button className="edit-btn" onClick={() => setEditMode(!editMode)}>
-              {editMode ? <><Eye size={16} /> Cancel</> : <><Pencil size={16} /> Edit Ticket</>}
+              {editMode ? (
+                <>
+                  <Eye size={16} /> Cancel
+                </>
+              ) : (
+                <>
+                  <Pencil size={16} /> Edit Ticket
+                </>
+              )}
             </button>
           )}
 
@@ -256,45 +308,69 @@ export default function TicketDetailPage() {
         <div className="comment-scroll">
           <ul className="comment-list">
             <div ref={commentsTopRef}></div>
-            {[...comments].reverse().filter((c) => !c.comment.startsWith("Ticket created with image:")).map((c) => (
-              <li key={c.id} className="comment-item">
-                <p>
-                  <strong>{c.commenter || "Unknown"}</strong> <em>({new Date(c.createdAt).toLocaleString()})</em>
-                </p>
-                {c.comment.startsWith("\uD83D\uDD04 Ticket updated:") ? (
-                  <>
-                    <p className="change-preview">This ticket has been updated.</p>
-                    <button className="see-changes-btn" onClick={() => handleSeeChanges(c.comment)}>
-                      See Changes
+            {[...comments]
+              .reverse()
+              .filter(
+                (c) => !c.comment.startsWith("Ticket created with image:")
+              )
+              .map((c) => (
+                <li key={c.id} className="comment-item">
+                  <p>
+                    <strong>{c.commenter || "Unknown"}</strong>{" "}
+                    <em>({new Date(c.createdAt).toLocaleString()})</em>
+                  </p>
+                  {c.comment.startsWith("\uD83D\uDD04 Ticket updated:") ? (
+                    <>
+                      <p className="change-preview">
+                        This ticket has been updated.
+                      </p>
+                      <button
+                        className="see-changes-btn"
+                        onClick={() => handleSeeChanges(c.comment)}
+                      >
+                        See Changes
+                      </button>
+                    </>
+                  ) : (
+                    <p>{c.comment}</p>
+                  )}
+                  {c.imageUrl && (
+                    <button onClick={() => setPreviewImage(c.imageUrl)}>
+                      📷 Screenshot
                     </button>
-                  </>
-                ) : (
-                  <p>{c.comment}</p>
-                )}
-                {c.imageUrl && (
-                  <button onClick={() => setPreviewImage(c.imageUrl)}>
-                    📷 Screenshot
-                  </button>
-                )}
-              </li>
-            ))}
+                  )}
+                </li>
+              ))}
           </ul>
         </div>
 
-        <form onSubmit={handleAddComment} className="comment-form" encType="multipart/form-data">
-          <textarea
-            placeholder="Write a comment..."
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            required
-          />
-          <input type="file" accept="image/*" onChange={(e) => setNewImage(e.target.files[0])} />
-          <button type="submit">Submit Comment</button>
-        </form>
+        {ticket.status !== "Resolved" && ticket.status !== "Closed" && (
+          <form
+            onSubmit={handleAddComment}
+            className="comment-form"
+            encType="multipart/form-data"
+          >
+            <textarea
+              placeholder="Write a comment..."
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              required
+            />
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setNewImage(e.target.files[0])}
+            />
+            <button type="submit">Submit Comment</button>
+          </form>
+        )}
       </div>
 
       {previewImage && (
-        <div className="preview-modal image-overlay" onClick={() => setPreviewImage(null)}>
+        <div
+          className="preview-modal image-overlay"
+          onClick={() => setPreviewImage(null)}
+        >
           <img src={previewImage} alt="Preview" className="preview-full" />
         </div>
       )}
@@ -306,16 +382,25 @@ export default function TicketDetailPage() {
             <p className="change-preview">📝 Changes made to the ticket.</p>
             {textChanges.length > 0 && <pre>{textChanges.join("\n")}</pre>}
             {oldImageUrl && oldImageUrl.startsWith("http") && (
-              <button className="image-button" onClick={() => setPreviewImage(oldImageUrl)}>
+              <button
+                className="image-button"
+                onClick={() => setPreviewImage(oldImageUrl)}
+              >
                 🖼️ Old Image
               </button>
             )}
             {newImageUrl && newImageUrl.startsWith("http") && (
-              <button className="image-button" onClick={() => setPreviewImage(newImageUrl)}>
+              <button
+                className="image-button"
+                onClick={() => setPreviewImage(newImageUrl)}
+              >
                 🆕 New Image
               </button>
             )}
-            <button className="close-btn" onClick={() => setPreviewChanges(null)}>
+            <button
+              className="close-btn"
+              onClick={() => setPreviewChanges(null)}
+            >
               Close
             </button>
           </div>
