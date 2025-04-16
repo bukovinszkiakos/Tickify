@@ -48,23 +48,15 @@ namespace Tickify.Services
                 })
                 .ToListAsync();
 
-            var relevantTicketIds = isAdmin
-                ? tickets
-                    .Where(t => t.AssignedTo == userId ||
-                                _dbContext.TicketComments.Any(c => c.TicketId == t.Id && c.CommentedBy == userId) ||
-                                _dbContext.TicketHistories.Any(h => h.TicketId == t.Id && h.ChangedBy.ToString() == userId))
-                    .Select(t => t.Id)
-                    .ToList()
-                : tickets
-                    .Where(t => t.CreatedBy == userId)
-                    .Select(t => t.Id)
-                    .ToList();
-
             var userIdString = (userId ?? "").Trim();
+
+            var relevantTicketIds = isAdmin
+                ? tickets.Select(t => t.Id).ToList()
+                : tickets.Where(t => t.CreatedBy == userId).Select(t => t.Id).ToList();
 
             var unreadCounts = await _dbContext.TicketComments
                 .Where(c => relevantTicketIds.Contains(c.TicketId))
-                .Where(c => c.CommentedBy.Trim() != userIdString)
+                .Where(c => c.CommentedBy != userIdString)
                 .Where(c => !_dbContext.CommentReadStatuses
                     .Any(r => r.CommentId == c.Id && r.UserId == userIdString))
                 .GroupBy(c => c.TicketId)
@@ -74,13 +66,22 @@ namespace Tickify.Services
                 })
                 .ToListAsync();
 
-            var assignedUserIds = tickets.Where(t => !string.IsNullOrEmpty(t.AssignedTo))
-                                          .Select(t => t.AssignedTo)
-                                          .Distinct()
-                                          .ToList();
+            var assignedUserIds = tickets
+                .Where(t => !string.IsNullOrEmpty(t.AssignedTo))
+                .Select(t => t.AssignedTo)
+                .Distinct()
+                .ToList();
 
-            var assignedUserMap = await _dbContext.Users
-                .Where(u => assignedUserIds.Contains(u.Id))
+            var creatorUserIds = tickets
+                .Where(t => !string.IsNullOrEmpty(t.CreatedBy))
+                .Select(t => t.CreatedBy)
+                .Distinct()
+                .ToList();
+
+            var allUserIds = assignedUserIds.Concat(creatorUserIds).Distinct().ToList();
+
+            var userMap = await _dbContext.Users
+                .Where(u => allUserIds.Contains(u.Id))
                 .ToDictionaryAsync(u => u.Id, u => u.UserName);
 
             var ticketDtos = tickets.Select(t => new TicketDto
@@ -93,9 +94,11 @@ namespace Tickify.Services
                 Status = t.Status,
                 Priority = t.Priority,
                 CreatedBy = t.CreatedBy,
+                CreatedByName = t.CreatedBy != null && userMap.ContainsKey(t.CreatedBy)
+                    ? userMap[t.CreatedBy] : "Unknown",
                 AssignedTo = t.AssignedTo,
-                AssignedToName = t.AssignedTo != null && assignedUserMap.ContainsKey(t.AssignedTo)
-                    ? assignedUserMap[t.AssignedTo] : null,
+                AssignedToName = t.AssignedTo != null && userMap.ContainsKey(t.AssignedTo)
+                    ? userMap[t.AssignedTo] : null,
                 ImageUrl = t.ImageUrl,
                 TotalCommentCount = commentCounts.FirstOrDefault(c => c.TicketId == t.Id)?.Total ?? 0,
                 UnreadCommentCount = unreadCounts.FirstOrDefault(u => u.TicketId == t.Id)?.Unread ?? 0
@@ -111,6 +114,8 @@ namespace Tickify.Services
 
 
 
+
+
         public async Task<TicketDto> GetTicketDtoByIdAsync(int id, string userId, bool isAdmin)
         {
             var ticket = await _ticketRepository.GetTicketByIdAsync(id);
@@ -119,10 +124,25 @@ namespace Tickify.Services
                 throw new KeyNotFoundException("Ticket not found.");
             }
 
-            if (!isAdmin && ticket.CreatedBy != userId)
+            var user = await _userManager.FindByIdAsync(userId);
+            var isSuperAdmin = user != null && await _userManager.IsInRoleAsync(user, "SuperAdmin");
+
+            var isCreator = ticket.CreatedBy == userId;
+            var isAssigned = ticket.AssignedTo == userId;
+
+            if (!(isSuperAdmin || isAdmin || isCreator))
             {
                 throw new UnauthorizedAccessException("Not allowed to access this ticket.");
             }
+
+
+            var createdByName = ticket.CreatedBy != null
+    ? (await _dbContext.Users.FindAsync(ticket.CreatedBy))?.UserName
+    : "Unknown";
+
+            var assignedToName = ticket.AssignedTo != null
+                ? (await _dbContext.Users.FindAsync(ticket.AssignedTo))?.UserName
+                : null;
 
             return new TicketDto
             {
@@ -134,14 +154,15 @@ namespace Tickify.Services
                 Status = ticket.Status,
                 Priority = ticket.Priority,
                 CreatedBy = ticket.CreatedBy,
+                CreatedByName = createdByName,
                 AssignedTo = ticket.AssignedTo,
-                AssignedToName = ticket.AssignedTo != null
-         ? (await _dbContext.Users.FindAsync(ticket.AssignedTo))?.UserName
-         : null,
+                AssignedToName = assignedToName,
                 ImageUrl = ticket.ImageUrl
             };
 
         }
+
+
 
         public async Task<TicketDto> CreateTicketAsync(
     string title,
@@ -392,18 +413,43 @@ namespace Tickify.Services
         {
             var ticket = await _ticketRepository.GetTicketByIdAsync(id);
             if (ticket == null)
-            {
                 throw new KeyNotFoundException("Ticket not found.");
-            }
 
-            if (!isAdmin && ticket.CreatedBy != userId)
+            var creatorId = ticket.CreatedBy?.Trim();
+            var isCreator = creatorId == userId.Trim();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            var isSuperAdmin = user != null && await _userManager.IsInRoleAsync(user, "SuperAdmin");
+            var isAssignedAdmin = ticket.AssignedTo?.Trim() == userId.Trim();
+
+            if (!(isCreator || (isAdmin && (isAssignedAdmin || isSuperAdmin))))
             {
                 throw new UnauthorizedAccessException("Not allowed to delete this ticket.");
             }
 
+            var oldNotifications = _dbContext.Notifications
+                .Where(n => n.TicketId == ticket.Id.ToString());
+            _dbContext.Notifications.RemoveRange(oldNotifications);
+
             _ticketRepository.DeleteTicket(ticket);
+
+            if (!isCreator && isAdmin && creatorId != null)
+            {
+                await _dbContext.Notifications.AddAsync(new Notification
+                {
+                    UserId = creatorId,
+                    CreatedBy = userId,
+                    Message = $"❌ Your ticket \"{ticket.Title}\" was deleted by an admin.",
+                    TicketId = null,
+                    CreatedAt = DateTime.UtcNow,
+                    IsRead = false
+                });
+            }
+
             await _ticketRepository.SaveChangesAsync();
         }
+
+
 
         public async Task<bool> DeleteTicketImageAsync(int ticketId, string userId, bool isAdmin)
         {
@@ -445,11 +491,11 @@ namespace Tickify.Services
             }
         }
 
-        public async Task<IEnumerable<TicketDto>> GetTicketsForAdminAsync(string adminUserId)
+        public async Task<IEnumerable<TicketDto>> GetTicketsForAdminAsync(string adminUserId, bool isSuperAdmin)
         {
-            var tickets = await _ticketRepository.GetAllTicketsAsync();
-            var userIdString = adminUserId.Trim();
+            var tickets = await _ticketRepository.GetAllTicketsAsync(); 
 
+            var userIdString = adminUserId.Trim();
             var allTicketIds = tickets.Select(t => t.Id).ToList();
 
             var commentCounts = await _dbContext.TicketComments
@@ -475,6 +521,17 @@ namespace Tickify.Services
                                           .Distinct()
                                           .ToList();
 
+                    var creatorUserIds = tickets
+            .Where(t => !string.IsNullOrEmpty(t.CreatedBy))
+            .Select(t => t.CreatedBy)
+            .Distinct()
+            .ToList();
+
+            var creatorUserMap = await _dbContext.Users
+                .Where(u => creatorUserIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u.UserName);
+
+
             var assignedUserMap = await _dbContext.Users
                 .Where(u => assignedUserIds.Contains(u.Id))
                 .ToDictionaryAsync(u => u.Id, u => u.UserName);
@@ -489,9 +546,11 @@ namespace Tickify.Services
                 Status = t.Status,
                 Priority = t.Priority,
                 CreatedBy = t.CreatedBy,
+                CreatedByName = t.CreatedBy != null && creatorUserMap.ContainsKey(t.CreatedBy)
+        ? creatorUserMap[t.CreatedBy] : "Unknown",
                 AssignedTo = t.AssignedTo,
                 AssignedToName = t.AssignedTo != null && assignedUserMap.ContainsKey(t.AssignedTo)
-                    ? assignedUserMap[t.AssignedTo] : null,
+        ? assignedUserMap[t.AssignedTo] : null,
                 ImageUrl = t.ImageUrl,
                 TotalCommentCount = commentCounts.FirstOrDefault(c => c.TicketId == t.Id)?.Total ?? 0,
                 UnreadCommentCount = unreadCounts.FirstOrDefault(u => u.TicketId == t.Id)?.Unread ?? 0
@@ -499,6 +558,8 @@ namespace Tickify.Services
 
             return ticketDtos;
         }
+
+
 
 
 
