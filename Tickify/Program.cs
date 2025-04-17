@@ -125,7 +125,7 @@ void AddAuthentication()
                 ValidIssuer = jwtSection["ValidIssuer"],
                 ValidAudience = jwtSection["ValidAudience"],
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSection["IssuerSigningKey"])),
-                RoleClaimType = ClaimTypes.Role 
+                RoleClaimType = ClaimTypes.Role
             };
 
             options.Events = new JwtBearerEvents
@@ -155,9 +155,9 @@ void AddIdentity()
             options.Password.RequireUppercase = false;
             options.Password.RequireLowercase = false;
         })
-        .AddRoles<IdentityRole>() 
+        .AddRoles<IdentityRole>()
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
 }
 
-
+public partial class Program { }

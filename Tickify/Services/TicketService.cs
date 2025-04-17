@@ -444,6 +444,7 @@ namespace Tickify.Services
                     CreatedAt = DateTime.UtcNow,
                     IsRead = false
                 });
+                await _dbContext.SaveChangesAsync();
             }
 
             await _ticketRepository.SaveChangesAsync();
