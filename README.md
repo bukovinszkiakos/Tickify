@@ -107,11 +107,51 @@ Users and Admins receive real-time style in-app notifications when:
 
 ---
 
+
+
 ## 🧪 Testing
 
-Coming soon...
+This project includes **full unit and integration test coverage** for all core logic and API endpoints.
 
 ---
+
+### ✅ Unit Tests
+
+You can run the unit tests with:
+
+```bash
+dotnet test TickifyUnitTests/TickifyUnitTests.csproj
+```
+
+These cover:
+
+- TicketService  
+- AuthService  
+- Repositories  
+- Token logic  
+- Ticket comment services
+
+---
+
+### ✅ Integration Tests
+
+You can run the integration tests with:
+
+```bash
+dotnet test TickifyIntegrationTests/TickifyIntegrationTests.csproj
+```
+
+These cover:
+
+- Authentication (login, register, logout)  
+- Ticket API (create, update, delete, image handling)  
+- Ticket comments (with image uploads and unread tracking)  
+- Admin endpoints (user role management, dashboard stats)  
+- Full HTTP-level testing with JWT + authorization  
+- Database interactions (with in-memory DB)
+
+---
+
 
 ## 📅 Roadmap
 
