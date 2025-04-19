@@ -93,8 +93,10 @@ namespace Tickify.Controllers
                     await image.CopyToAsync(stream);
                 }
 
-                imageUrl = $"{Request.Scheme}://{Request.Host}/uploads/{fileName}"; 
+                var publicHost = Environment.GetEnvironmentVariable("PUBLIC_HOST") ?? Request.Host.Value;
+                imageUrl = $"{Request.Scheme}://{publicHost}/uploads/{fileName}";
             }
+
 
             try
             {
