@@ -3,9 +3,11 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { apiGet, apiPut, apiPost } from "../../../utils/api";
-import { useAuth } from "../../context/AuthContext";
-import "../../styles/AdminTicketsPage.css";
+import { apiGet, apiPut, apiPost } from "../../utils/api";
+import { useAuth } from "../context/AuthContext";
+import "../styles/AdminTicketsPage.css";
+
+
 
 export default function AdminTicketsPage() {
   const { user } = useAuth();

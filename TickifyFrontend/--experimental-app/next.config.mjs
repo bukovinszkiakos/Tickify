@@ -5,14 +5,15 @@ const nextConfig = {
     return [
       {
         source: "/Auth/:path*",
-        destination: "http://localhost:5043/Auth/:path*", 
+        destination: "http://tickify-backend:5000/Auth/:path*",
       },
       {
         source: "/api/:path*",
-        destination: "http://localhost:5043/api/:path*", 
+        destination: "http://tickify-backend:5000/api/:path*",
       },
     ];
   },
 };
 
 export default nextConfig;
+

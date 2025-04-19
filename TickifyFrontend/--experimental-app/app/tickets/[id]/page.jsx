@@ -164,6 +164,7 @@ export default function TicketDetailPage() {
         )
       );
     setTextChanges(lines);
+
     const oldMatch = text.match(/Old image: (https?:\/\/\S+)/);
     const newMatch = text.match(/New image: (https?:\/\/\S+)/);
     setOldImageUrl(oldMatch?.[1] || null);
@@ -171,155 +172,150 @@ export default function TicketDetailPage() {
   };
 
   const canDelete =
-  (!user?.isAdmin && user?.id === ticket?.createdBy) ||
-  (user?.isAdmin && user?.id === ticket?.assignedTo) ||
-  user?.roles?.includes("SuperAdmin");
-
-
-  if (error) return <p className="error-message">{error}</p>;
-  if (!ticket) return <p className="loading-message">Loading ticket...</p>;
-
-  return (
-    <div className="ticket-page-container">
-      <div className="ticket-detail-card">
-        <h1>🎫 Ticket Detail</h1>
-        <div className="info-block">
-          <strong>👤 Created by:</strong>{" "}
-          <span>{ticket.createdByName || "Unknown"}</span>
-        </div>
-
-        <div className="ticket-info">
+    (!user?.isAdmin && user?.id === ticket?.createdBy) ||
+    (user?.isAdmin && user?.id === ticket?.assignedTo) ||
+    user?.roles?.includes("SuperAdmin");
+    if (error) return <p className="error-message">{error}</p>;
+    if (!ticket) return <p className="loading-message">Loading ticket...</p>;
+  
+    return (
+      <div className="ticket-page-container">
+        <div className="ticket-detail-card">
+          <h1>🎫 Ticket Detail</h1>
           <div className="info-block">
-            <strong>📝 Title:</strong>
-            {editMode ? (
-              <input
-                className="field-input"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            ) : (
-              <div className="scrollable-text">{ticket.title}</div>
-            )}
+            <strong>👤 Created by:</strong>{" "}
+            <span>{ticket.createdByName || "Unknown"}</span>
           </div>
-
-          <div className="info-block">
-            <strong>📄 Description:</strong>
-            {editMode ? (
-              <textarea
-                className="field-input"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            ) : (
-              <div className="scrollable-text">{ticket.description}</div>
-            )}
-          </div>
-
-          <div className="info-block">
-            <strong>🚦 Priority:</strong>
-            {editMode ? (
-              <select
-                className="field-input"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-              >
-                <option>Low</option>
-                <option>Normal</option>
-                <option>High</option>
-              </select>
-            ) : (
-              <span>{ticket.priority}</span>
-            )}
-          </div>
-
-          <div className="info-block">
-            <strong>📌 Status:</strong>
-            {user?.isAdmin && user.id === ticket.assignedTo ? (
-              <select
-                className="field-input"
-                value={status}
-                onChange={handleAdminStatusChange}
-              >
-                <option>Open</option>
-                <option>In Progress</option>
-                <option>Resolved</option>
-                <option>Closed</option>
-              </select>
-            ) : (
-              <span>{status}</span>
-            )}
-          </div>
-
-          {editMode && (
+  
+          <div className="ticket-info">
             <div className="info-block">
-              <strong>
-                <FileImage size={14} /> Change Screenshot:
-              </strong>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setEditImage(e.target.files[0])}
-              />
+              <strong>📝 Title:</strong>
+              {editMode ? (
+                <input
+                  className="field-input"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+              ) : (
+                <div className="scrollable-text">{ticket.title}</div>
+              )}
+            </div>
+  
+            <div className="info-block">
+              <strong>📄 Description:</strong>
+              {editMode ? (
+                <textarea
+                  className="field-input"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              ) : (
+                <div className="scrollable-text">{ticket.description}</div>
+              )}
+            </div>
+  
+            <div className="info-block">
+              <strong>🚦 Priority:</strong>
+              {editMode ? (
+                <select
+                  className="field-input"
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                >
+                  <option>Low</option>
+                  <option>Normal</option>
+                  <option>High</option>
+                </select>
+              ) : (
+                <span>{ticket.priority}</span>
+              )}
+            </div>
+  
+            <div className="info-block">
+              <strong>📌 Status:</strong>
+              {user?.isAdmin && user.id === ticket.assignedTo ? (
+                <select
+                  className="field-input"
+                  value={status}
+                  onChange={handleAdminStatusChange}
+                >
+                  <option>Open</option>
+                  <option>In Progress</option>
+                  <option>Resolved</option>
+                  <option>Closed</option>
+                </select>
+              ) : (
+                <span>{status}</span>
+              )}
+            </div>
+  
+            {editMode && (
+              <div className="info-block">
+                <strong>
+                  <FileImage size={14} /> Change Screenshot:
+                </strong>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setEditImage(e.target.files[0])}
+                />
+              </div>
+            )}
+          </div>
+  
+          <div className="action-buttons">
+            {!user?.isAdmin && (
+              <button className="edit-btn" onClick={() => setEditMode(!editMode)}>
+                {editMode ? (
+                  <>
+                    <Eye size={16} /> Cancel
+                  </>
+                ) : (
+                  <>
+                    <Pencil size={16} /> Edit Ticket
+                  </>
+                )}
+              </button>
+            )}
+  
+            {canDelete && (
+              <button className="delete-btn" onClick={handleDelete}>
+                <Trash2 size={16} /> Delete Ticket
+              </button>
+            )}
+          </div>
+  
+          {editMode && !user?.isAdmin && (
+            <form className="edit-form" onSubmit={handleUpdate}>
+              <button type="submit" className="save-btn">
+                <Save size={16} /> Save Changes
+              </button>
+            </form>
+          )}
+  
+          {ticket.imageUrl && !editMode && (
+            <div className="screenshot-section">
+              <button onClick={() => setPreviewImage(ticket.imageUrl)}>
+                📎 Screenshot or attachment
+              </button>
             </div>
           )}
         </div>
-
-        <div className="action-buttons">
-          {!user?.isAdmin && (
-            <button className="edit-btn" onClick={() => setEditMode(!editMode)}>
-              {editMode ? (
-                <>
-                  <Eye size={16} /> Cancel
-                </>
-              ) : (
-                <>
-                  <Pencil size={16} /> Edit Ticket
-                </>
-              )}
-            </button>
-          )}
-
-          {canDelete && (
-            <button className="delete-btn" onClick={handleDelete}>
-              <Trash2 size={16} /> Delete Ticket
-            </button>
-          )}
-        </div>
-
-        {editMode && !user?.isAdmin && (
-          <form className="edit-form" onSubmit={handleUpdate}>
-            <button type="submit" className="save-btn">
-              <Save size={16} /> Save Changes
-            </button>
-          </form>
-        )}
-
-        {ticket.imageUrl && !editMode && (
-          <div className="screenshot-section">
-            <button onClick={() => setPreviewImage(ticket.imageUrl)}>
-              📎 Screenshot or attachment
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="ticket-comments-section">
+        <div className="ticket-comments-section">
         <h2>💬 Comments</h2>
         <div className="comment-scroll">
           <ul className="comment-list">
             <div ref={commentsTopRef}></div>
             {[...comments]
               .reverse()
-              .filter(
-                (c) => !c.comment.startsWith("Ticket created with image:")
-              )
+              .filter((c) => !c.comment.startsWith("Ticket created with image:"))
               .map((c) => (
                 <li key={c.id} className="comment-item">
                   <p>
                     <strong>{c.commenter || "Unknown"}</strong>{" "}
                     <em>({new Date(c.createdAt).toLocaleString()})</em>
                   </p>
-                  {c.comment.startsWith("\uD83D\uDD04 Ticket updated:") ? (
+                  {c.comment.startsWith("🔄 Ticket updated:") ? (
                     <>
                       <p className="change-preview">
                         This ticket has been updated.
@@ -409,3 +405,4 @@ export default function TicketDetailPage() {
     </div>
   );
 }
+  
