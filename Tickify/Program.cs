@@ -41,9 +41,19 @@ app.UseStaticFiles(new StaticFileOptions
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+
+    var dbContext = services.GetRequiredService<ApplicationDbContext>();
+    var providerName = dbContext.Database.ProviderName;
+
+    if (!string.IsNullOrEmpty(providerName) && providerName.Contains("SqlServer"))
+    {
+        dbContext.Database.Migrate();
+    }
+
     var roleSeeder = services.GetRequiredService<RoleSeeder>();
     await roleSeeder.SeedRolesAndAdminAsync();
 }
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
