@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: tickify-db
+    ports:
+      - "1433:1433"
+    environment:
+      SA_PASSWORD: "yourStrong(!)Password"
+      ACCEPT_EULA: "Y"
+    networks:
+      - tickify-net
+
+  backend:
+    build:
+      context: ./Tickify
+    container_name: tickify-backend
+    ports:
+      - "5000:5000"
+    environment:
+      ASPNETCORE_URLS: http://+:5000
+      ASPNETCORE_ENVIRONMENT: Development
+      PUBLIC_HOST: host.docker.internal:5000
+      ConnectionStrings__DefaultConnection: "Server=tickify-db;Database=TickifyDb;User Id=sa;Password=yourStrong(!)Password;Encrypt=False;TrustServerCertificate=True;"
+    depends_on:
+      - db
+    networks:
+      - tickify-net
+
+  frontend:
+    build:
+      context: ./TickifyFrontend/--experimental-app
+    container_name: tickify-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:5000
+    depends_on:
+      - backend
+    networks:
+      - tickify-net
+
+networks:
+  tickify-net:
