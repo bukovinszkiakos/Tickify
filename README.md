@@ -31,13 +31,16 @@ Below is a quick look at just a few key features of Tickify in action.
 > ⏯️ These short demos highlight a single user flow, but Tickify offers much more – including full role-based access, detailed status tracking, admin dashboards, user management, and in-app notifications.
 
 ### 🧑‍💻 A user creates a new support ticket with a short description and an optional screenshot.
-<img src="https://github.com/user-attachments/assets/72133e7a-72bf-4fc5-9d53-b6051cf184e9" width="100%" />
+<img src="https://github.com/user-attachments/assets/143fa21d-0d3f-4f2a-9e53-185ca3659aea" width="100%" />
+
 
 ### 🛠️ An admin assigns the ticket to themselves and replies with helpful steps or attachments.
-<img src="https://github.com/user-attachments/assets/9d11f5d7-0b91-4c87-ae1c-00ce24a728a7" width="100%" />
+<img src="https://github.com/user-attachments/assets/d99e496e-8f5e-4d8d-b9c0-dd415238b8e8" width="100%" />
+
 
 ### ✅ Once resolved, the user checks the updated ticket and sees a notification.
-<img src="https://github.com/user-attachments/assets/f3ecddd2-98ae-4d9b-bf93-b31615188586" width="100%" />
+<img src="https://github.com/user-attachments/assets/593f8dca-11da-4f87-8a24-03cdcdc2a2d6" width="100%" />
+
 
 
 ## 🔧 Built With
