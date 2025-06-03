@@ -13,11 +13,7 @@ const Footer = () => {
   return (
     <footer className="footer">
       <p>© {year} Tickify. All rights reserved.</p>
-      <p>
-        <Link href="/privacy">Privacy</Link>
-        |
-        <Link href="/terms">Terms</Link>
-      </p>
+      
     </footer>
   );
 };

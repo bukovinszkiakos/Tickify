@@ -170,7 +170,11 @@
 .preview-content p {
   margin-bottom: 12px;
   font-size: 0.95rem;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
+
 
 .preview-image {
   margin-top: 15px;
@@ -244,3 +248,18 @@
     flex-direction: column;
   }
 }
+
+.scrollable-text {
+  max-height: 50px; 
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 8px;
+  background: #f9f9f9;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  margin-top: 6px;
+  font-size: 0.9rem;
+}
+
+

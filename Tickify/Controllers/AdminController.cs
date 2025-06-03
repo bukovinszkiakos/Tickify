@@ -52,18 +52,34 @@ namespace Tickify.Controllers
         public async Task<IActionResult> DeleteUser(string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
-            if (user == null) return NotFound("User not found");
+            if (user == null)
+                return NotFound("User not found");
 
             var roles = await _userManager.GetRolesAsync(user);
 
             if (roles.Contains("SuperAdmin") && User.IsInRole("Admin") && !User.IsInRole("SuperAdmin"))
-            {
                 return Forbid("Admins cannot delete SuperAdmins.");
+
+            var activeStatuses = new[] { "Open", "In Progress" };
+            var hasActiveTickets = await _ticketService
+                .GetTicketsForUserAsync(userId, false);
+
+            if (hasActiveTickets.Any(t => activeStatuses.Contains(t.Status)))
+                return BadRequest("Cannot delete user: there are still active tickets.");
+
+            var closedTickets = hasActiveTickets.Where(t => t.Status == "Resolved" || t.Status == "Closed").ToList();
+            foreach (var ticket in closedTickets)
+            {
+                await _ticketService.DeleteTicketAsync(ticket.Id, userId, isAdmin: true);
             }
 
-            await _userManager.DeleteAsync(user);
-            return Ok(new { message = "User deleted successfully" });
+            var result = await _userManager.DeleteAsync(user);
+            if (!result.Succeeded)
+                return StatusCode(500, "Failed to delete user.");
+
+            return Ok(new { message = "User and all resolved/closed tickets deleted successfully." });
         }
+
 
 
         [Authorize(Roles = "SuperAdmin")]
@@ -74,6 +90,8 @@ namespace Tickify.Controllers
             if (user == null) return NotFound("User not found");
 
             var currentRoles = await _userManager.GetRolesAsync(user);
+            var isCurrentlyAdmin = currentRoles.Contains("Admin") || currentRoles.Contains("SuperAdmin");
+            var willBeAdmin = role == "Admin" || role == "SuperAdmin";
 
             var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
             if (!removeResult.Succeeded) return BadRequest(removeResult.Errors);
@@ -81,8 +99,19 @@ namespace Tickify.Controllers
             var addResult = await _userManager.AddToRoleAsync(user, role);
             if (!addResult.Succeeded) return BadRequest(addResult.Errors);
 
+            if (willBeAdmin && !isCurrentlyAdmin)
+            {
+                var userTickets = await _ticketService.GetTicketsForUserAsync(userId, false);
+
+                foreach (var ticket in userTickets)
+                {
+                    await _ticketService.DeleteTicketAsync(ticket.Id, userId, isAdmin: true);
+                }
+            }
+
             return Ok(new { message = $"User {user.UserName} role set to {role}" });
         }
+
 
         [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpGet("tickets")]

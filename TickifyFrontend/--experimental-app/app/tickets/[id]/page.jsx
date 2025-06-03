@@ -264,19 +264,20 @@ export default function TicketDetailPage() {
           </div>
   
           <div className="action-buttons">
-            {!user?.isAdmin && (
-              <button className="edit-btn" onClick={() => setEditMode(!editMode)}>
-                {editMode ? (
-                  <>
-                    <Eye size={16} /> Cancel
-                  </>
-                ) : (
-                  <>
-                    <Pencil size={16} /> Edit Ticket
-                  </>
-                )}
-              </button>
-            )}
+            {!user?.isAdmin && status !== "Resolved" && status !== "Closed" && (
+  <button className="edit-btn" onClick={() => setEditMode(!editMode)}>
+    {editMode ? (
+      <>
+        <Eye size={16} /> Cancel
+      </>
+    ) : (
+      <>
+        <Pencil size={16} /> Edit Ticket
+      </>
+    )}
+  </button>
+)}
+
   
             {canDelete && (
               <button className="delete-btn" onClick={handleDelete}>

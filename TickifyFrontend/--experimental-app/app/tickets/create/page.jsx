@@ -138,14 +138,16 @@ export default function CreateTicketPage() {
         <div className="preview-modal" onClick={() => setShowPreview(false)}>
           <div className="preview-content" onClick={(e) => e.stopPropagation()}>
             <h2>Ticket Preview</h2>
-            <p>
-              <strong>Title:</strong> {title}
-            </p>
-            <p>
+            <div>
+              <strong>Title:</strong>
+              <div className="scrollable-text">{title}</div>
+            </div>
+
+            <div>
               <strong>Description:</strong>
-              <br />
-              {description}
-            </p>
+              <div className="scrollable-text">{description}</div>
+            </div>
+
             <p>
               <strong>Priority:</strong> {priority}
             </p>

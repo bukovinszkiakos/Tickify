@@ -54,14 +54,21 @@ export default function AdminUsersPage() {
     return "User";
   }
 
-  async function handleDeleteUser(userId) {
-    try {
-      await apiDelete(`/api/admin/users/${userId}`);
-      setUsers((prev) => prev.filter((u) => u.id !== userId));
-    } catch (err) {
-      setError(err.message);
+ async function handleDeleteUser(userId) {
+  try {
+    await apiDelete(`/api/admin/users/${userId}`);
+    setUsers((prev) => prev.filter((u) => u.id !== userId));
+    setError(""); 
+  } catch (err) {
+    const msg = err.message || "";
+    if (msg.includes("still active tickets")) {
+      setError("❌ This user cannot be deleted because they still have unresolved tickets. Please close or resolve their tickets first.");
+    } else {
+      setError("An unexpected error occurred. Please try again.");
     }
   }
+}
+
 
   async function handleAssignRole(e) {
     e.preventDefault();

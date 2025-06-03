@@ -214,12 +214,7 @@ namespace Tickify.Services
             await _ticketRepository.AddTicketAsync(ticket);
             await _ticketRepository.SaveChangesAsync();
 
-            if (!string.IsNullOrEmpty(fullImageUrl))
-            {
-                var commentText = $"Ticket created with image: {fullImageUrl}";
-                var user = await _userManager.FindByIdAsync(userId);
-                await _ticketCommentService.AddCommentAsync(ticket.Id, commentText, userId, user?.UserName ?? "Unknown", null);
-            }
+
 
             return new TicketDto
             {
@@ -235,6 +230,7 @@ namespace Tickify.Services
                 ImageUrl = imageUrl
             };
         }
+
 
 
 

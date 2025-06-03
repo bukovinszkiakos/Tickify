@@ -16,17 +16,37 @@ export default function NotificationBell() {
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const handleNotificationClick = async (notification) => {
-    try {
-      await apiPost(`/api/user/notifications/${notification.id}/read`, {});
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n))
-      );
-      setOpen(false);
-      router.push(`/tickets/${notification.ticketId}`);
-    } catch (err) {
-      console.error("Failed to mark notification as read:", err);
+  try {
+    const check = await fetch(`/api/tickets/${notification.ticketId}`, {
+      method: "GET",
+      credentials: "include",
+    });
+
+    if (!check.ok) {
+      if (check.status === 404) {
+        setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
+        alert("❌ This ticket was deleted. Notification removed.");
+        return;
+      } else {
+        throw new Error("Ticket check failed");
+      }
     }
-  };
+
+    await apiPost(`/api/user/notifications/${notification.id}/read`, {});
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.id === notification.id ? { ...n, isRead: true } : n
+      )
+    );
+
+    setOpen(false);
+    router.push(`/tickets/${notification.ticketId}`);
+  } catch (err) {
+    console.error("Failed to open notification:", err);
+    alert("Something went wrong. Please try again.");
+  }
+};
+
 
   const handleDelete = async (id) => {
     try {

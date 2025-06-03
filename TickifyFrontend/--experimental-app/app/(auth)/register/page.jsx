@@ -37,65 +37,74 @@ export default function RegisterPage() {
 
   return (
     <div className="register-container">
-      <div className="register-box">
-        <h2>
-        Register<ion-icon name="person-add-outline"></ion-icon> 
-        </h2>
-        {error && <p className="error-message">{error}</p>}
-
-        <form onSubmit={handleRegister}>
-          <div className="input-box">
-            <span className="icon">
-              <ion-icon name="person"></ion-icon>
-            </span>
-            <input
-              type="text"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder=" "
-            />
-            <label>Username</label>
-          </div>
-
-          <div className="input-box">
-            <span className="icon">
-              <ion-icon name="mail"></ion-icon>
-            </span>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder=" "
-            />
-            <label>Email</label>
-          </div>
-
-          <div className="input-box">
-            <span className="icon">
-              <ion-icon name="lock-closed"></ion-icon>
-            </span>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder=" "
-            />
-            <label>Password</label>
-          </div>
-
-          <button type="submit" className="btn">
-            Register
-          </button>
-
-          <div className="login-register">
+      <div className="register-card-wrapper">
+        <div className="info-card fadeIn">
+          <div className="info-card-text">
+            <h3>Why Join Tickify?</h3>
             <p>
-              Already have an account? <Link href="/login">Login</Link>
+              Get instant updates, manage your tickets efficiently, and collaborate with our team —
+              all in one intuitive platform.
             </p>
           </div>
-        </form>
+          <img
+            src="/images/register-illustration.png"
+            alt="Register Illustration"
+            className="info-image"
+          />
+        </div>
+
+        <div className="register-box fadeIn">
+          <h2>
+            Register <ion-icon name="person-add-outline"></ion-icon>
+          </h2>
+          {error && <p className="error-message">{error}</p>}
+
+          <form onSubmit={handleRegister}>
+            <div className="input-box">
+              <span className="icon"><ion-icon name="person"></ion-icon></span>
+              <input
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder=" "
+              />
+              <label>Username</label>
+            </div>
+
+            <div className="input-box">
+              <span className="icon"><ion-icon name="mail"></ion-icon></span>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder=" "
+              />
+              <label>Email</label>
+            </div>
+
+            <div className="input-box">
+              <span className="icon"><ion-icon name="lock-closed"></ion-icon></span>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder=" "
+              />
+              <label>Password</label>
+            </div>
+
+            <button type="submit" className="btn">Register</button>
+
+            <div className="login-register">
+              <p>
+                Already have an account? <Link href="/login">Login</Link>
+              </p>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

@@ -109,6 +109,17 @@
     background-color: #17a2b8;
     color: white;
   }
+
+  .error-message {
+  color: red;
+  background: #ffe0e0;
+  padding: 10px 16px;
+  border-radius: 8px;
+  margin: 12px 0;
+  font-weight: 500;
+  border: 1px solid #ffbdbd;
+}
+
   
   
   
