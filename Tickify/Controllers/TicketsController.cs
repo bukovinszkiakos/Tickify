@@ -49,10 +49,11 @@ namespace Tickify.Controllers
             {
                 var ticketDto = await _ticketService.GetTicketDtoByIdAsync(id, userId, isAdmin);
 
-                if (!string.IsNullOrEmpty(ticketDto.ImageUrl))
+                if (!string.IsNullOrEmpty(ticketDto.ImageUrl) && !ticketDto.ImageUrl.StartsWith("http"))
                 {
                     ticketDto.ImageUrl = $"{Request.Scheme}://{Request.Host}{ticketDto.ImageUrl}";
                 }
+
 
                 return Ok(ticketDto);
             }
